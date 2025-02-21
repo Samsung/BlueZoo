@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bluezoo"
+version = "0.1.0"
+description = "A mock for the BlueZ D-Bus API"
+license = { file = "LICENSE" }
+readme = "README.rst"
+dependencies = ["sdbus"]
+
+[project.scripts]
+bluetoothd-mock = "bluezoo:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.autopep8]
+max-line-length = 99
+
+[tool.isort]
+line_length = 99
