@@ -15,7 +15,10 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         super().__init__()
 
         self.adapter = None
+
         self.address = address
+        self.class_ = 0
+        self.appearance = 0
         self.paired = False
         self.bonded = False
         self.trusted = False
@@ -25,6 +28,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.service_data = {}
         self.name = name
         self.alias = name
+        self.uuids = []
 
     def get_object_path(self):
         return "/".join((
@@ -61,7 +65,15 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
 
     @dbus_property_async("u")
     def Class(self) -> int:
-        return self.adapter.class_
+        return self.class_
+
+    @dbus_property_async("q")
+    def Appearance(self) -> int:
+        return self.appearance
+
+    @dbus_property_async("as")
+    def UUIDs(self) -> list[str]:
+        return self.uuids
 
     @dbus_property_async("b")
     def Paired(self) -> bool:

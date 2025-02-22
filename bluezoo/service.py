@@ -54,11 +54,28 @@ class BluezMockService:
                         continue
                     if not controller.powered:
                         continue
-                    if not controller.discoverable and controller.advertisement_slots_active == 0:
-                        continue
-                    # Report the device (adapter) on our controller.
-                    self.controllers[id].add_device(DeviceInterface(
-                        address=controller.address,
-                        name=controller.name))
+                    device = None
+                    # Check if controller has enabled LE advertising.
+                    if controller.advertisement_slots_active > 0:
+                        adv = next(iter(controller.advertisements.values()))
+                        adv_props = await adv.properties_get_all_dict()
+                        # The LE advertisement discoverable property is not mandatory,
+                        # but if present, it overrides the controller's property.
+                        if not adv_props.get("Discoverable", controller.discoverable):
+                            continue
+                        device = DeviceInterface(
+                            address=controller.address,
+                            name=adv_props.get("LocalName", controller.name))
+                        device.appearance = adv_props.get("Appearance", 0)
+                        device.uuids = adv_props.get("ServiceUUIDs", [])
+                        device.service_data = adv_props.get("ServiceData", {})
+                    # Check if controller has enabled BR/EDR advertising.
+                    elif controller.discoverable:
+                        device = DeviceInterface(
+                            address=controller.address,
+                            name=controller.name)
+                    if device is not None:
+                        # Report the device (adapter) on our controller.
+                        self.controllers[id].add_device(device)
                 await asyncio.sleep(10)
         return asyncio.create_task(task())

@@ -117,6 +117,35 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Discovery started")
             await proc.expect("Device 00:00:00:01:00:00")
 
+    async def test_advertise_le(self):
+        async with await client() as proc:
+
+            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("power on")
+            await proc.expect("Changing power on succeeded")
+            await proc.write("menu advertise")
+            await proc.write("name BLE-Device")
+            await proc.write("appearance 0x00a0")
+            await proc.write("uuids 0xFFF1")
+            await proc.write("service 0xFFF1 0xDE 0xAD 0xBE 0xEF")
+            await proc.write("discoverable on")
+            await proc.write("back")
+            await proc.write("advertise peripheral")
+            await proc.expect("Advertising object registered")
+
+            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("power on")
+            await proc.expect("Changing power on succeeded")
+
+            await proc.write("scan le")
+            await proc.expect("Discovery started")
+            await proc.expect("Device 00:00:00:01:00:00")
+
+            await proc.write("info 00:00:00:01:00:00")
+            await proc.expect("Name: BLE-Device")
+            await proc.expect("Appearance: 0x00a0")
+            await proc.expect("ServiceData Key: 0xFFF1")
+
 
 if __name__ == '__main__':
     asyncio.run(unittest.main())

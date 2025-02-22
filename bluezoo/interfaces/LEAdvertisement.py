@@ -39,8 +39,32 @@ class LEAdvertisementInterface(sdbus.DbusInterfaceCommonAsync,
     def Data(self) -> dict[int, bytes]:
         raise NotImplementedError
 
+    @dbus_property_async("as")
+    def ScanResponseServiceUUIDs(self) -> list[str]:
+        raise NotImplementedError
+
+    @dbus_property_async("a{yay}")
+    def ScanResponseManufacturerData(self) -> dict[int, bytes]:
+        raise NotImplementedError
+
+    @dbus_property_async("as")
+    def ScanResponseSolicitUUIDs(self) -> list[str]:
+        raise NotImplementedError
+
+    @dbus_property_async("a{say}")
+    def ScanResponseServiceData(self) -> dict[str, bytes]:
+        raise NotImplementedError
+
+    @dbus_property_async("a{yay}")
+    def ScanResponseData(self) -> dict[int, bytes]:
+        raise NotImplementedError
+
     @dbus_property_async("b")
     def Discoverable(self) -> bool:
+        raise NotImplementedError
+
+    @dbus_property_async("q")
+    def DiscoverableTimeout(self) -> int:
         raise NotImplementedError
 
     @dbus_property_async("as")
@@ -55,10 +79,26 @@ class LEAdvertisementInterface(sdbus.DbusInterfaceCommonAsync,
     def Appearance(self) -> int:
         raise NotImplementedError
 
+    @dbus_property_async("q")
+    def Duration(self) -> int:
+        raise NotImplementedError
+
+    @dbus_property_async("q")
+    def Timeout(self) -> int:
+        raise NotImplementedError
+
+    @dbus_property_async("s")
+    def SecondaryChannel(self) -> str:
+        raise NotImplementedError
+
     @dbus_property_async("u")
     def MinInterval(self) -> int:
         raise NotImplementedError
 
     @dbus_property_async("u")
     def MaxInterval(self) -> int:
+        raise NotImplementedError
+
+    @dbus_property_async("n")
+    def TxPower(self) -> int:
         raise NotImplementedError
