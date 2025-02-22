@@ -37,9 +37,13 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.discoverable = False
         self.discoverable_timeout = 180
         self.discoverable_task = None
+        self.pairable = True
+        self.pairable_timeout = 0
+        self.pairable_task = None
         self.discovering = False
         self.name = name or random.choice(TEST_NAMES)
         self.alias = self.name
+        self.uuids = []
 
     def get_object_path(self):
         return f"/org/bluez/hci{self.id}"
@@ -128,9 +132,10 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
                 """Set the adapter as non-discoverable after the timeout."""
                 await asyncio.sleep(self.discoverable_timeout)
                 await self.Discoverable.set_async(False)
-            timeout = self.discoverable_timeout
-            logging.info(f"Adapter {self.id} is discoverable for {timeout} seconds")
-            self.discoverable_task = asyncio.create_task(task())
+            # If timeout is non-zero, set up cancellation task.
+            if timeout := self.discoverable_timeout:
+                logging.info(f"Adapter {self.id} is discoverable for {timeout} seconds")
+                self.discoverable_task = asyncio.create_task(task())
 
     @dbus_property_async("u")
     def DiscoverableTimeout(self) -> int:
@@ -141,9 +146,44 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.discoverable_timeout = value
 
     @dbus_property_async("b")
+    def Pairable(self) -> bool:
+        return self.pairable
+
+    @Pairable.setter
+    def Pairable_setter(self, value: bool):
+        self.pairable = value
+        if self.pairable_task is not None:
+            self.pairable_task.cancel()
+        if value:
+            async def task():
+                """Set the adapter as non-pairable after the timeout."""
+                await asyncio.sleep(self.pairable_timeout)
+                await self.Pairable.set_async(False)
+            # If timeout is non-zero, set up cancellation task.
+            if timeout := self.pairable_timeout:
+                logging.info(f"Adapter {self.id} is pairable for {timeout} seconds")
+                self.pairable_task = asyncio.create_task(task())
+
+    @dbus_property_async("u")
+    def PairableTimeout(self) -> int:
+        return self.pairable_timeout
+
+    @PairableTimeout.setter
+    def PairableTimeout_setter(self, value: int):
+        self.pairable_timeout = value
+
+    @dbus_property_async("b")
     def Discovering(self) -> bool:
         return self.discovering
 
     @Discovering.setter
     def Discovering_setter(self, value: bool):
         self.discovering = value
+
+    @dbus_property_async("as")
+    def UUIDs(self) -> list[str]:
+        return self.uuids
+
+    @dbus_property_async("as")
+    def Roles(self) -> list[str]:
+        return ["central", "peripheral"]

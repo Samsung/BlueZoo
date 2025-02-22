@@ -6,7 +6,8 @@ import logging
 
 from sdbus import DbusObjectManagerInterfaceAsync
 
-from .interfaces import AdapterInterface, AgentManagerInterface, DeviceInterface
+from .interfaces import (AdapterInterface, AgentManagerInterface, DeviceInterface,
+                         LEAdvertisingManagerInterface)
 
 
 class BluezMockService:
@@ -21,10 +22,16 @@ class BluezMockService:
         logging.info(f"Adding adapter {id} with address {address}")
         adapter = AdapterInterface(self, id, address)
         agent_manager = AgentManagerInterface(self)
+        le_advertising_manager = LEAdvertisingManagerInterface(self)
         path = adapter.get_object_path()
-        self.manager.export_with_manager(path, adapter, self.bus)
+        # The order of this exports is important. The object manager interface
+        # exports the objects in the reversed order. The BlueZ CLI tool expects
+        # the adapter to be "processed" first. So, the adapter object needs to
+        # be exported as the last one.
+        self.manager.export_with_manager(path, le_advertising_manager, self.bus)
         self.manager.export_with_manager(path, agent_manager, self.bus)
-        self.adapters[id] = [adapter, agent_manager]
+        self.manager.export_with_manager(path, adapter, self.bus)
+        self.adapters[id] = [adapter, agent_manager, le_advertising_manager]
 
     def del_adapter(self, id: int):
         logging.info(f"Removing adapter {id}")
