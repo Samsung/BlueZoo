@@ -23,21 +23,9 @@ class LEAdvertisement(LEAdvertisementInterface):
 class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
                                     interface_name="org.bluez.LEAdvertisingManager1"):
 
-    # Number of supported advertisement instances.
-    INSTANCES = 15
-
-    def __init__(self, service):
+    def __init__(self, controller):
+        self.controller = controller
         super().__init__()
-        self.service = service
-        self.advertisements = {}
-
-    @property
-    def active_instances(self):
-        return len(self.advertisements)
-
-    @property
-    def supported_instances(self):
-        return self.INSTANCES - len(self.advertisements)
 
     @dbus_method_async(
         input_signature="oa{sv}",
@@ -46,11 +34,8 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to register advertisement {advertisement}")
-        self.advertisements[(sender, advertisement)] = LEAdvertisement(options, sender,
-                                                                       advertisement,
-                                                                       self.service.bus)
-        await self.ActiveInstances.set_async(self.active_instances)
-        await self.SupportedInstances.set_async(self.supported_instances)
+        await self.controller.register_advertisement(
+            LEAdvertisement(options, sender, advertisement, self.controller.service.bus))
 
     @dbus_method_async(
         input_signature="o",
@@ -58,13 +43,12 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
     async def UnregisterAdvertisement(self, advertisement: str) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to unregister advertisement {advertisement}")
-        self.advertisements.pop((sender, advertisement))
-        await self.ActiveInstances.set_async(self.active_instances)
-        await self.SupportedInstances.set_async(self.supported_instances)
+        await self.controller.unregister_advertisement(
+            self.controller.advertisements[sender, advertisement])
 
     @dbus_property_async("y")
     def ActiveInstances(self) -> int:
-        return self.active_instances
+        return self.controller.advertisement_slots_active
 
     @ActiveInstances.setter_private
     def ActiveInstances_setter(self, value: int) -> None:
@@ -72,7 +56,7 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
 
     @dbus_property_async("y")
     def SupportedInstances(self) -> int:
-        return self.supported_instances
+        return self.controller.advertisement_slots_available
 
     @SupportedInstances.setter_private
     def SupportedInstances_setter(self, value: int) -> None:

@@ -6,8 +6,8 @@ import logging
 
 from sdbus import DbusObjectManagerInterfaceAsync
 
-from .interfaces import (AdapterInterface, AgentManagerInterface, DeviceInterface,
-                         LEAdvertisingManagerInterface)
+from .controller import Controller
+from .interfaces import DeviceInterface
 
 
 class BluezMockService:
@@ -15,28 +15,28 @@ class BluezMockService:
     def __init__(self, bus):
         self.manager = DbusObjectManagerInterfaceAsync()
         self.manager.export_to_dbus("/", bus)
-        self.adapters = {}
+        self.controllers: dict[int, Controller] = {}
         self.bus = bus
 
     def add_adapter(self, id: int, address: str):
         logging.info(f"Adding adapter {id} with address {address}")
-        adapter = AdapterInterface(self, id, address)
-        agent_manager = AgentManagerInterface(self)
-        le_advertising_manager = LEAdvertisingManagerInterface(self)
-        path = adapter.get_object_path()
+        controller = Controller(self, id, address)
+        path = controller.get_object_path()
         # The order of this exports is important. The object manager interface
         # exports the objects in the reversed order. The BlueZ CLI tool expects
         # the adapter to be "processed" first. So, the adapter object needs to
         # be exported as the last one.
-        self.manager.export_with_manager(path, le_advertising_manager, self.bus)
-        self.manager.export_with_manager(path, agent_manager, self.bus)
-        self.manager.export_with_manager(path, adapter, self.bus)
-        self.adapters[id] = [adapter, agent_manager, le_advertising_manager]
+        self.manager.export_with_manager(path, controller.iface_le_adv_manager, self.bus)
+        self.manager.export_with_manager(path, controller.iface_agent_manager, self.bus)
+        self.manager.export_with_manager(path, controller.iface_adapter, self.bus)
+        self.controllers[id] = controller
 
     def del_adapter(self, id: int):
         logging.info(f"Removing adapter {id}")
-        for interface in self.adapters.pop(id):
-            self.manager.remove_managed_object(interface)
+        controller = self.controllers.pop(id)
+        self.manager.remove_managed_object(controller.iface_le_adv_manager)
+        self.manager.remove_managed_object(controller.iface_agent_manager)
+        self.manager.remove_managed_object(controller.iface_adapter)
 
     def create_discovering_task(self, id: int):
         """Create a task that scans for devices on the adapter.
@@ -48,15 +48,17 @@ class BluezMockService:
         async def task():
             while True:
                 logging.info(f"Scanning for devices on adapter {id}")
-                for adapter in self.adapters.values():
-                    if adapter.id == id:
-                        # Do not report our own adapter.
+                for controller in self.controllers.values():
+                    if controller.id == id:
+                        # Do not report our own controller.
                         continue
-                    if not adapter.powered or not adapter.discoverable:
+                    if not controller.powered:
                         continue
-                    # Report the device (adapter) on our adapter.
-                    await self.adapters[id].add_device(DeviceInterface(
-                        address=adapter.address,
-                        name=adapter.alias))
+                    if not controller.discoverable and controller.advertisement_slots_active == 0:
+                        continue
+                    # Report the device (adapter) on our controller.
+                    self.controllers[id].add_device(DeviceInterface(
+                        address=controller.address,
+                        name=controller.name))
                 await asyncio.sleep(10)
         return asyncio.create_task(task())
