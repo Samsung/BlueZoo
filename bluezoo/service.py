@@ -6,7 +6,7 @@ import logging
 
 from sdbus import DbusObjectManagerInterfaceAsync
 
-from .interfaces import AdapterInterface, DeviceInterface
+from .interfaces import AdapterInterface, AgentManagerInterface, DeviceInterface
 
 
 class BluezMockService:
@@ -20,12 +20,16 @@ class BluezMockService:
     def add_adapter(self, id: int, address: str):
         logging.info(f"Adding adapter {id} with address {address}")
         adapter = AdapterInterface(self, id, address)
-        self.manager.export_with_manager(adapter.get_object_path(), adapter, self.bus)
-        self.adapters[id] = adapter
+        agent_manager = AgentManagerInterface(self)
+        path = adapter.get_object_path()
+        self.manager.export_with_manager(path, adapter, self.bus)
+        self.manager.export_with_manager(path, agent_manager, self.bus)
+        self.adapters[id] = [adapter, agent_manager]
 
     def del_adapter(self, id: int):
         logging.info(f"Removing adapter {id}")
-        self.manager.remove_managed_object(self.adapters.pop(id))
+        for interface in self.adapters.pop(id):
+            self.manager.remove_managed_object(interface)
 
     def create_discovering_task(self, id: int):
         """Create a task that scans for devices on the adapter.
