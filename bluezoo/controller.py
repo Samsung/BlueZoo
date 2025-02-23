@@ -5,8 +5,8 @@ import asyncio
 import logging
 import random
 
-from .interfaces import (AdapterInterface, AgentManagerInterface, DeviceInterface,
-                         LEAdvertisingManagerInterface)
+from .device import Device
+from .interfaces import AdapterInterface, AgentManagerInterface, LEAdvertisingManagerInterface
 
 # List of predefined device names.
 TEST_NAMES = (
@@ -110,19 +110,19 @@ class Controller:
         await self.iface_le_adv_manager.SupportedInstances.set_async(
             self.advertisement_slots_available)
 
-    def add_device(self, device: DeviceInterface):
-        device.adapter = self  # Set the device's adapter.
+    def add_device(self, device: Device):
+        device.peer = self  # Set the device's peer controller.
         path = device.get_object_path()
         if path in self.devices:
             return
         logging.info(f"Adding device {device.address} to adapter {self.id}")
-        self.service.manager.export_with_manager(path, device, self.service.bus)
+        self.service.manager.export_with_manager(path, device.iface, self.service.bus)
         self.devices[path] = device
 
-    def remove_device(self, device: DeviceInterface):
+    def remove_device(self, device: Device):
         logging.info(f"Removing device {device.address} from adapter {self.id}")
         self.devices.pop(device.get_object_path())
-        self.service.manager.remove_managed_object(device)
+        self.service.manager.remove_managed_object(device.iface)
 
     def set_discoverable(self, enabled: bool):
         self.discoverable = enabled

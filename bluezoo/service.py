@@ -7,7 +7,7 @@ import logging
 from sdbus import DbusObjectManagerInterfaceAsync
 
 from .controller import Controller
-from .interfaces import DeviceInterface
+from .device import Device
 
 
 class BluezMockService:
@@ -63,17 +63,14 @@ class BluezMockService:
                         # but if present, it overrides the controller's property.
                         if not adv_props.get("Discoverable", controller.discoverable):
                             continue
-                        device = DeviceInterface(
-                            address=controller.address,
-                            name=adv_props.get("LocalName", controller.name))
+                        device = Device(controller)
+                        device.name_ = adv_props.get("LocalName", controller.name)
                         device.appearance = adv_props.get("Appearance", 0)
                         device.uuids = adv_props.get("ServiceUUIDs", [])
                         device.service_data = adv_props.get("ServiceData", {})
                     # Check if controller has enabled BR/EDR advertising.
                     elif controller.discoverable:
-                        device = DeviceInterface(
-                            address=controller.address,
-                            name=controller.name)
+                        device = Device(controller)
                     if device is not None:
                         # Report the device (adapter) on our controller.
                         self.controllers[id].add_device(device)
