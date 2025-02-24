@@ -6,6 +6,7 @@ import logging
 import random
 
 from .device import Device
+from .helpers import NoneTask
 from .interfaces import AdapterInterface, LEAdvertisingManagerInterface
 
 # List of predefined device names.
@@ -35,12 +36,12 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
         self.powered = False
         self.discoverable = False
         self.discoverable_timeout = 180
-        self.discoverable_task = None
+        self.discoverable_task = NoneTask()
         self.pairable = False
         self.pairable_timeout = 0
-        self.pairable_task = None
+        self.pairable_task = NoneTask()
         self.discovering = False
-        self.discovering_task = None
+        self.discovering_task = NoneTask()
         self.uuids = []
 
         self.advertisements = {}
@@ -72,8 +73,7 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
 
     async def stop_discovering(self):
         logging.info(f"Stopping discovery on adapter {self.id}")
-        if self.discovering_task is not None:
-            self.discovering_task.cancel()
+        self.discovering_task.cancel()
         await self.Discovering.set_async(False)
 
     async def register_advertisement(self, advertisement):
@@ -102,8 +102,7 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
 
     def set_discoverable(self, enabled: bool):
         self.discoverable = enabled
-        if self.discoverable_task is not None:
-            self.discoverable_task.cancel()
+        self.discoverable_task.cancel()
         if enabled:
             async def task():
                 """Set the adapter as non-discoverable after the timeout."""
@@ -116,8 +115,7 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
 
     def set_pairable(self, enabled: bool):
         self.pairable = enabled
-        if self.pairable_task is not None:
-            self.pairable_task.cancel()
+        self.pairable_task.cancel()
         if enabled:
             async def task():
                 """Set the adapter as non-pairable after the timeout."""

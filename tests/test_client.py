@@ -18,7 +18,12 @@ class AsyncProcessContext:
         self.proc.terminate()
         await self.proc.wait()
 
-    async def expect(self, data: str, timeout: float = 1.0):
+    async def __read(self, readline=False):
+        if readline:
+            return await self.proc.stdout.readline()
+        return await self.proc.stdout.read(4096)
+
+    async def expect(self, data: str, timeout=1.0, eol=True):
         """Read output until expected text is found or timeout occurs."""
         output = b''
         needle = data.encode()
@@ -28,8 +33,7 @@ class AsyncProcessContext:
             if diff <= 0:
                 raise TimeoutError(f"Timeout waiting for '{data}' in output")
             try:
-                line = await asyncio.wait_for(self.proc.stdout.readline(),
-                                              timeout=diff)
+                line = await asyncio.wait_for(self.__read(eol), timeout=diff)
                 print(line.decode(), end="")
                 if not line:  # EOF
                     break
@@ -161,7 +165,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Appearance: 0x00a0")
             await proc.expect("ServiceData Key: 0xFFF1")
 
-    async def test_pairing(self):
+    async def test_pair(self):
         async with await client() as proc:
 
             # Wait for the default agent to be registered.
@@ -194,6 +198,44 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("info 00:00:00:02:00:00")
             await proc.expect("Device 00:00:00:02:00:00 (public)")
             await proc.expect("Paired: yes")
+
+    async def test_connect(self):
+        async with await client() as proc:
+
+            # Wait for the default agent to be registered.
+            await proc.expect("Agent registered")
+            # Register agent for auto-pairing process.
+            await proc.write("agent off")
+            await proc.expect("Agent unregistered")
+            await proc.write("agent NoInputNoOutput")
+            await proc.expect("Agent registered")
+
+            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("discoverable on")
+            await proc.expect("Changing discoverable on succeeded")
+
+            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("scan on")
+            await proc.expect("Discovery started")
+            await proc.expect("Device 00:00:00:01:00:00")
+
+            await proc.write("connect 00:00:00:01:00:00")
+            # The device is not trusted, so we need to accept the pairing.
+            await proc.expect("[agent] Accept pairing (yes/no):", eol=False)
+            await proc.write("yes")
+
+            await proc.expect("Connection successful")
+
+            # Verify that the device is connected.
+            await proc.write("info 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:01:00:00 (public)")
+            await proc.expect("Connected: yes")
+
+            await proc.write("select 00:00:00:01:00:00")
+            # Verify that the device is connected.
+            await proc.write("info 00:00:00:02:00:00")
+            await proc.expect("Device 00:00:00:02:00:00 (public)")
+            await proc.expect("Connected: yes")
 
 
 if __name__ == '__main__':

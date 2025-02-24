@@ -11,6 +11,12 @@ from ..helpers import dbus_method_async, dbus_property_async
 class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
                       interface_name="org.bluez.Device1"):
 
+    async def connect(self) -> None:
+        raise NotImplementedError
+
+    async def disconnect(self) -> None:
+        raise NotImplementedError
+
     async def pair(self) -> None:
         raise NotImplementedError
 
@@ -19,11 +25,11 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
 
     @dbus_method_async()
     async def Connect(self) -> None:
-        raise NotImplementedError
+        await self.connect()
 
     @dbus_method_async()
     async def Disconnect(self) -> None:
-        raise NotImplementedError
+        await self.disconnect()
 
     @dbus_method_async(
         input_signature="s",
@@ -112,6 +118,10 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_property_async("b")
     def Connected(self) -> bool:
         return self.connected
+
+    @Connected.setter_private
+    def Connected_setter(self, value: bool):
+        self.connected = value
 
     @dbus_property_async("o")
     def Adapter(self) -> str:

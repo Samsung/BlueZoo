@@ -6,6 +6,23 @@ from functools import partial
 
 import sdbus
 
+
+class NoneTask:
+    """A class which imitates a task that is done."""
+
+    def __init__(self):
+        self._cancelled = False
+
+    def done(self):
+        return True
+
+    def cancel(self, msg=None):
+        self._cancelled = True
+
+    def cancelled(self):
+        return self._cancelled
+
+
 # Method decorator that sets the Unprivileged flag by default.
 dbus_method_async = partial(sdbus.dbus_method_async,
                             flags=sdbus.DbusUnprivilegedFlag)
