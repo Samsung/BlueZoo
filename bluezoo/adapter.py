@@ -24,8 +24,8 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
     # Number of supported advertisement instances per adapter.
     SUPPORTED_ADVERTISEMENT_INSTANCES = 15
 
-    def __init__(self, service, id: int, address: str):
-        self.service = service
+    def __init__(self, controller, id: int, address: str):
+        self.controller = controller
         super().__init__()
 
         self.id = id
@@ -67,7 +67,7 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
 
     async def start_discovering(self):
         logging.info(f"Starting discovery on adapter {self.id}")
-        self.discovering_task = self.service.create_discovering_task(self.id)
+        self.discovering_task = self.controller.service.create_discovering_task(self.id)
         await self.Discovering.set_async(True)
 
     async def stop_discovering(self):
@@ -87,18 +87,18 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
     def add_device(self, device: Device):
-        device.peer = self  # Set the device's peer controller.
+        device.peer = self  # Set the device's peer adapter.
         path = device.get_object_path()
         if path in self.devices:
             return
         logging.info(f"Adding device {device.address} to adapter {self.id}")
-        self.service.manager.export_with_manager(path, device.iface)
+        self.controller.service.manager.export_with_manager(path, device)
         self.devices[path] = device
 
     def remove_device(self, device: Device):
         logging.info(f"Removing device {device.address} from adapter {self.id}")
         self.devices.pop(device.get_object_path())
-        self.service.manager.remove_managed_object(device.iface)
+        self.controller.service.manager.remove_managed_object(device)
 
     def set_discoverable(self, enabled: bool):
         self.discoverable = enabled

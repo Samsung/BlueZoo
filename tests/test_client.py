@@ -151,6 +151,40 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Appearance: 0x00a0")
             await proc.expect("ServiceData Key: 0xFFF1")
 
+    async def test_pairing(self):
+        async with await client() as proc:
+
+            # Wait for the default agent to be registered.
+            await proc.expect("Agent registered")
+            # Register agent for auto-pairing process.
+            await proc.write("agent off")
+            await proc.expect("Agent unregistered")
+            await proc.write("agent NoInputNoOutput")
+            await proc.expect("Agent registered")
+
+            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("discoverable on")
+            await proc.expect("Changing discoverable on succeeded")
+
+            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("scan on")
+            await proc.expect("Discovery started")
+            await proc.expect("Device 00:00:00:01:00:00")
+
+            await proc.write("pair 00:00:00:01:00:00")
+            await proc.expect("Pairing successful")
+
+            # Verify that the device is paired.
+            await proc.write("info 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:01:00:00 (public)")
+            await proc.expect("Paired: yes")
+
+            await proc.write("select 00:00:00:01:00:00")
+            # Verify that the device is paired.
+            await proc.write("info 00:00:00:02:00:00")
+            await proc.expect("Device 00:00:00:02:00:00 (public)")
+            await proc.expect("Paired: yes")
+
 
 if __name__ == '__main__':
     asyncio.run(unittest.main())

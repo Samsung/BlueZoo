@@ -13,8 +13,8 @@ class Controller(AgentManagerInterface):
         self.service = service
         super().__init__()
 
+        self.agent = None
         self.agents = []
-        self.agent_default = None
 
     def get_object_path(self):
         return "/org/bluez"
@@ -22,8 +22,8 @@ class Controller(AgentManagerInterface):
     def register_agent(self, agent):
         logging.info(f"Registering agent with {agent.capability} capability")
 
-        if self.agent_default is None:
-            self.agent_default = agent
+        if self.agent is None:
+            self.agent = agent
         self.agents.append(agent)
 
         # If there is at least one agent, the adapters are pairable.
@@ -34,19 +34,19 @@ class Controller(AgentManagerInterface):
     def unregister_agent(self, agent):
         logging.info(f"Unregistering agent with {agent.capability} capability")
 
-        if agent == self.agent_default:
-            self.agent_default = None
+        if agent == self.agent:
+            self.agent = None
         self.agents.remove(agent)
 
         if self.agents:
             # Promote the lastly registered agent to be the default one.
-            self.agent_default = self.agents[-1]
+            self.agent = self.agents[-1]
 
-        if self.agent_default is None:
+        if self.agent is None:
             # If there are no agents, the adapters cannot be pairable.
             for adapter in self.service.adapters.values():
                 asyncio.create_task(adapter.Pairable.set_async(False))
 
     def set_default_agent(self, agent):
         logging.info(f"Setting default agent with {agent.capability} capability")
-        self.agent_default = agent
+        self.agent = agent
