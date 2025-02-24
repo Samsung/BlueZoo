@@ -72,12 +72,22 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             "bluetoothd-mock", "--verbose",
             "--auto-enable",
             "--adapter=00:00:00:01:00:00",
-            "--adapter=00:00:00:02:00:00")
+            "--adapter=00:00:00:02:00:00",
+            stderr=asyncio.subprocess.PIPE)
 
-        # Wait for mock to start
-        await asyncio.sleep(0.5)
+        # Wait for log message about adding adapter 00:00:00:01:00:00
+        await self._mock.stderr.readline()
+        # Wait for log message about adding adapter 00:00:00:02:00:00
+        await self._mock.stderr.readline()
+
+        async def forward():
+            while True:
+                line = await self._mock.stderr.readline()
+                print(line.decode(), end="", file=os.sys.stderr)
+        self._mock_forwarder = asyncio.create_task(forward())
 
     async def asyncTearDown(self):
+        self._mock_forwarder.cancel()
         self._mock.terminate()
         await self._mock.wait()
         self._bus.terminate()
