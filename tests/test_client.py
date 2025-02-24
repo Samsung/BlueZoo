@@ -45,10 +45,10 @@ class AsyncProcessContext:
         await self.proc.stdin.drain()
 
 
-async def client():
+async def client(*args):
     """Start bluetoothctl in a subprocess and return a context manager."""
     proc = await asyncio.create_subprocess_exec(
-        'bluetoothctl',
+        'bluetoothctl', *args,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE)
     return AsyncProcessContext(proc)
@@ -69,10 +69,10 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start mock with two adapters
         self._mock = await asyncio.create_subprocess_exec(
-            'bluetoothd-mock',
-            '--verbose',
-            '-a', '00:00:00:01:00:00',
-            '-a', '00:00:00:02:00:00')
+            "bluetoothd-mock", "--verbose",
+            "--auto-enable",
+            "--adapter=00:00:00:01:00:00",
+            "--adapter=00:00:00:02:00:00")
 
         # Wait for mock to start
         await asyncio.sleep(0.5)
@@ -107,15 +107,10 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         async with await client() as proc:
 
             await proc.write("select 00:00:00:01:00:00")
-            await proc.write("power on")
-            await proc.expect("Changing power on succeeded")
             await proc.write("discoverable on")
             await proc.expect("Changing discoverable on succeeded")
 
             await proc.write("select 00:00:00:02:00:00")
-            await proc.write("power on")
-            await proc.expect("Changing power on succeeded")
-
             await proc.write("scan on")
             await proc.expect("Discovery started")
             await proc.expect("Device 00:00:00:01:00:00")
@@ -124,15 +119,10 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         async with await client() as proc:
 
             await proc.write("select 00:00:00:01:00:00")
-            await proc.write("power on")
-            await proc.expect("Changing power on succeeded")
             await proc.write("advertise on")
             await proc.expect("Advertising object registered")
 
             await proc.write("select 00:00:00:02:00:00")
-            await proc.write("power on")
-            await proc.expect("Changing power on succeeded")
-
             await proc.write("scan le")
             await proc.expect("Discovery started")
             await proc.expect("Device 00:00:00:01:00:00")
@@ -141,8 +131,6 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         async with await client() as proc:
 
             await proc.write("select 00:00:00:01:00:00")
-            await proc.write("power on")
-            await proc.expect("Changing power on succeeded")
             await proc.write("menu advertise")
             await proc.write("name BLE-Device")
             await proc.write("appearance 0x00a0")
@@ -154,9 +142,6 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Advertising object registered")
 
             await proc.write("select 00:00:00:02:00:00")
-            await proc.write("power on")
-            await proc.expect("Changing power on succeeded")
-
             await proc.write("scan le")
             await proc.expect("Discovery started")
             await proc.expect("Device 00:00:00:01:00:00")

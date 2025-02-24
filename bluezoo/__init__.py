@@ -19,6 +19,9 @@ async def main_async():
         "--bus-session", action="store_true",
         help="use the session bus; default is the system bus")
     parser.add_argument(
+        "--auto-enable", action="store_true",
+        help="auto-enable adapters")
+    parser.add_argument(
         "-a", "--adapter", metavar="ADDRESS", dest="adapters",
         action="append", type=validate_bt_address,
         help="adapter to use")
@@ -31,7 +34,8 @@ async def main_async():
     service = BluezMockService()
 
     for i, address in enumerate(args.adapters):
-        service.add_adapter(i, address)
+        adapter = service.add_adapter(i, address)
+        adapter.powered = args.auto_enable
 
     while True:
         # Run forever...

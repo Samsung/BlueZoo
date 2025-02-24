@@ -28,6 +28,7 @@ class BluezMockService:
         adapter = Adapter(self, id, address)
         self.manager.export_with_manager(adapter.get_object_path(), adapter)
         self.adapters[id] = adapter
+        return adapter
 
     def del_adapter(self, id: int):
         logging.info(f"Removing adapter {id}")
