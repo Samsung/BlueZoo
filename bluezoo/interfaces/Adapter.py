@@ -11,17 +11,28 @@ from ..helpers import dbus_method_async, dbus_property_async
 class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
                        interface_name="org.bluez.Adapter1"):
 
-    def __init__(self, controller):
-        self.controller = controller
-        super().__init__()
+    async def start_discovering(self) -> None:
+        raise NotImplementedError
+
+    async def stop_discovering(self) -> None:
+        raise NotImplementedError
+
+    def remove_device(self, device) -> None:
+        raise NotImplementedError
+
+    def set_discoverable(self, enabled: bool) -> None:
+        raise NotImplementedError
+
+    def set_pairable(self, enabled: bool) -> None:
+        raise NotImplementedError
 
     @dbus_method_async()
     async def StartDiscovery(self) -> None:
-        await self.controller.start_discovering()
+        await self.start_discovering()
 
     @dbus_method_async()
     async def StopDiscovery(self) -> None:
-        await self.controller.stop_discovering()
+        await self.stop_discovering()
 
     @dbus_method_async(
         input_signature="a{sv}",
@@ -33,13 +44,13 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         input_signature="o",
         input_args_names=("device",))
     async def RemoveDevice(self, device: str) -> None:
-        if device not in self.controller.devices:
+        if device not in self.devices:
             return
-        self.controller.remove_device(self.controller.devices[device])
+        self.remove_device(self.devices[device])
 
     @dbus_property_async("s")
     def Address(self) -> str:
-        return self.controller.address
+        return self.address
 
     @dbus_property_async("s")
     def AddressType(self) -> str:
@@ -47,71 +58,71 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
 
     @dbus_property_async("s")
     def Name(self) -> str:
-        return self.controller.name_
+        return self.name_
 
     @dbus_property_async("s")
     def Alias(self) -> str:
-        return self.controller.name
+        return self.name
 
     @Alias.setter
     def Alias_setter(self, value: str):
-        self.controller.name = value
+        self.name = value
 
     @dbus_property_async("u")
     def Class(self) -> int:
-        return self.controller.class_
+        return self.class_
 
     @dbus_property_async("b")
     def Powered(self) -> bool:
-        return self.controller.powered
+        return self.powered
 
     @Powered.setter
     def Powered_setter(self, value: bool):
-        self.controller.powered = value
+        self.powered = value
 
     @dbus_property_async("b")
     def Discoverable(self) -> bool:
-        return self.controller.discoverable
+        return self.discoverable
 
     @Discoverable.setter
     def Discoverable_setter(self, value: bool):
-        self.controller.set_discoverable(value)
+        self.set_discoverable(value)
 
     @dbus_property_async("u")
     def DiscoverableTimeout(self) -> int:
-        return self.controller.discoverable_timeout
+        return self.discoverable_timeout
 
     @DiscoverableTimeout.setter
     def DiscoverableTimeout_setter(self, value: int):
-        self.controller.discoverable_timeout = value
+        self.discoverable_timeout = value
 
     @dbus_property_async("b")
     def Pairable(self) -> bool:
-        return self.controller.pairable
+        return self.pairable
 
     @Pairable.setter
     def Pairable_setter(self, value: bool):
-        self.controller.set_pairable(value)
+        self.set_pairable(value)
 
     @dbus_property_async("u")
     def PairableTimeout(self) -> int:
-        return self.controller.pairable_timeout
+        return self.pairable_timeout
 
     @PairableTimeout.setter
     def PairableTimeout_setter(self, value: int):
-        self.controller.pairable_timeout = value
+        self.pairable_timeout = value
 
     @dbus_property_async("b")
     def Discovering(self) -> bool:
-        return self.controller.discovering
+        return self.discovering
 
     @Discovering.setter
     def Discovering_setter(self, value: bool):
-        self.controller.discovering = value
+        self.discovering = value
 
     @dbus_property_async("as")
     def UUIDs(self) -> list[str]:
-        return self.controller.uuids
+        return self.uuids
 
     @dbus_property_async("as")
     def Roles(self) -> list[str]:

@@ -6,37 +6,32 @@ import logging
 
 from sdbus import DbusObjectManagerInterfaceAsync
 
+from .adapter import Adapter
 from .controller import Controller
 from .device import Device
 
 
 class BluezMockService:
 
-    def __init__(self, bus):
+    def __init__(self):
+
         self.manager = DbusObjectManagerInterfaceAsync()
-        self.manager.export_to_dbus("/", bus)
-        self.controllers: dict[int, Controller] = {}
-        self.bus = bus
+        self.manager.export_to_dbus("/")
+
+        self.controller = Controller(self)
+        self.manager.export_with_manager(self.controller.get_object_path(), self.controller)
+
+        self.adapters: dict[int, Adapter] = {}
 
     def add_adapter(self, id: int, address: str):
         logging.info(f"Adding adapter {id} with address {address}")
-        controller = Controller(self, id, address)
-        path = controller.get_object_path()
-        # The order of this exports is important. The object manager interface
-        # exports the objects in the reversed order. The BlueZ CLI tool expects
-        # the adapter to be "processed" first. So, the adapter object needs to
-        # be exported as the last one.
-        self.manager.export_with_manager(path, controller.iface_le_adv_manager, self.bus)
-        self.manager.export_with_manager(path, controller.iface_agent_manager, self.bus)
-        self.manager.export_with_manager(path, controller.iface_adapter, self.bus)
-        self.controllers[id] = controller
+        adapter = Adapter(self, id, address)
+        self.manager.export_with_manager(adapter.get_object_path(), adapter)
+        self.adapters[id] = adapter
 
     def del_adapter(self, id: int):
         logging.info(f"Removing adapter {id}")
-        controller = self.controllers.pop(id)
-        self.manager.remove_managed_object(controller.iface_le_adv_manager)
-        self.manager.remove_managed_object(controller.iface_agent_manager)
-        self.manager.remove_managed_object(controller.iface_adapter)
+        self.manager.remove_managed_object(self.adapters.pop(id))
 
     def create_discovering_task(self, id: int):
         """Create a task that scans for devices on the adapter.
@@ -48,31 +43,31 @@ class BluezMockService:
         async def task():
             while True:
                 logging.info(f"Scanning for devices on adapter {id}")
-                for controller in self.controllers.values():
-                    if controller.id == id:
-                        # Do not report our own controller.
+                for adapter in self.adapters.values():
+                    if adapter.id == id:
+                        # Do not report our own adapter.
                         continue
-                    if not controller.powered:
+                    if not adapter.powered:
                         continue
                     device = None
-                    # Check if controller has enabled LE advertising.
-                    if controller.advertisement_slots_active > 0:
-                        adv = next(iter(controller.advertisements.values()))
+                    # Check if adapter has enabled LE advertising.
+                    if adapter.advertisement_slots_active > 0:
+                        adv = next(iter(adapter.advertisements.values()))
                         adv_props = await adv.properties_get_all_dict()
                         # The LE advertisement discoverable property is not mandatory,
-                        # but if present, it overrides the controller's property.
-                        if not adv_props.get("Discoverable", controller.discoverable):
+                        # but if present, it overrides the adapter's property.
+                        if not adv_props.get("Discoverable", adapter.discoverable):
                             continue
-                        device = Device(controller)
-                        device.name_ = adv_props.get("LocalName", controller.name)
+                        device = Device(adapter)
+                        device.name_ = adv_props.get("LocalName", adapter.name)
                         device.appearance = adv_props.get("Appearance", 0)
                         device.uuids = adv_props.get("ServiceUUIDs", [])
                         device.service_data = adv_props.get("ServiceData", {})
-                    # Check if controller has enabled BR/EDR advertising.
-                    elif controller.discoverable:
-                        device = Device(controller)
+                    # Check if adapter has enabled BR/EDR advertising.
+                    elif adapter.discoverable:
+                        device = Device(adapter)
                     if device is not None:
-                        # Report the device (adapter) on our controller.
-                        self.controllers[id].add_device(device)
+                        # Report discoverable device on our adapter.
+                        self.adapters[id].add_device(device)
                 await asyncio.sleep(10)
         return asyncio.create_task(task())

@@ -83,6 +83,26 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         self._bus.terminate()
         await self._bus.wait()
 
+    async def test_agent(self):
+        async with await client() as proc:
+            # BlueZ client always registers an agent on startup.
+            await proc.expect("Agent registered")
+
+            # We need to unregister the agent to add a new one.
+            await proc.write("agent off")
+            await proc.expect("Agent unregistered")
+            # Without an agent, pairing is not possible.
+            await proc.expect("Controller 00:00:00:01:00:00 Pairable: no")
+            await proc.expect("Controller 00:00:00:02:00:00 Pairable: no")
+
+            await proc.write("agent NoInputNoOutput")
+            await proc.expect("Agent registered")
+            await proc.expect("Controller 00:00:00:01:00:00 Pairable: yes")
+            await proc.expect("Controller 00:00:00:02:00:00 Pairable: yes")
+
+            await proc.write("default-agent")
+            await proc.expect("Default agent request successful")
+
     async def test_scan(self):
         async with await client() as proc:
 

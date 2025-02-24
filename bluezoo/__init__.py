@@ -28,7 +28,7 @@ async def main_async():
 
     bus = setup_default_bus("session" if args.bus_session else "system")
     await bus.request_name_async("org.bluez", 0)
-    service = BluezMockService(bus)
+    service = BluezMockService()
 
     for i, address in enumerate(args.adapters):
         service.add_adapter(i, address)

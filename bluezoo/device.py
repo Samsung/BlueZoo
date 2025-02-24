@@ -6,17 +6,17 @@ from .interfaces import DeviceInterface
 
 class Device:
 
-    def __init__(self, controller):
+    def __init__(self, adapter):
 
-        # The controller that manages this device.
-        self.controller = controller
-        # The peer controller to which this device is connected. It is set
-        # when the device is connected to a peer controller.
+        # The adapter that manages this device.
+        self.adapter = adapter
+        # The peer adapter to which this device is connected. It is set
+        # when the device is connected to a peer adapter.
         self.peer = None
 
-        self.address = controller.address
-        self.name_ = controller.name
-        self.class_ = controller.class_
+        self.address = adapter.address
+        self.name_ = adapter.name
+        self.class_ = adapter.class_
         self.appearance = 0
         self.paired = False
         self.bonded = False
