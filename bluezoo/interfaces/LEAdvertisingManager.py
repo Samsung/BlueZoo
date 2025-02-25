@@ -6,18 +6,17 @@ from typing import Any
 
 import sdbus
 
-from ..helpers import dbus_method_async, dbus_property_async
+from ..helpers import dbus_method_async, dbus_property_async, DBusClientMixin
 from .LEAdvertisement import LEAdvertisementInterface
 
 
-class LEAdvertisement(LEAdvertisementInterface):
+class LEAdvertisement(LEAdvertisementInterface, DBusClientMixin):
     """D-Bus client for the LEAdvertisement1 interface."""
 
-    def __init__(self, options, client, path):
+    def __init__(self, client, path, options):
         super().__init__()
-        self.options = options
-        self.destination = (client, path)
         self._connect(client, path)
+        self.options = options
 
 
 class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
@@ -27,10 +26,10 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
     advertisement_slots_active: int = None
     advertisement_slots_available: int = None
 
-    async def register_advertisement(self, advertisement: LEAdvertisement) -> None:
+    async def add_le_advertisement(self, advertisement: LEAdvertisement) -> None:
         raise NotImplementedError
 
-    async def unregister_advertisement(self, advertisement: LEAdvertisement) -> None:
+    async def del_le_advertisement(self, advertisement: LEAdvertisement) -> None:
         raise NotImplementedError
 
     @dbus_method_async(
@@ -40,7 +39,7 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to register advertisement {advertisement}")
-        await self.register_advertisement(LEAdvertisement(options, sender, advertisement))
+        await self.add_le_advertisement(LEAdvertisement(sender, advertisement, options))
 
     @dbus_method_async(
         input_signature="o",
@@ -48,7 +47,7 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
     async def UnregisterAdvertisement(self, advertisement: str) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to unregister advertisement {advertisement}")
-        await self.unregister_advertisement(self.advertisements[sender, advertisement])
+        await self.del_le_advertisement(self.advertisements[sender, advertisement])
 
     @dbus_property_async("y")
     def ActiveInstances(self) -> int:

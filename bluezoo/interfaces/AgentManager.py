@@ -2,42 +2,37 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from typing import Optional
 
 import sdbus
 
-from ..helpers import dbus_method_async
+from ..helpers import dbus_method_async, DBusClientMixin
 from .Agent import AgentInterface
 
 
-class Agent(AgentInterface):
+class Agent(AgentInterface, DBusClientMixin):
     """D-Bus client for the Agent interface."""
 
-    def __init__(self, capability: str, client, path):
+    def __init__(self, client, path, capability: str):
         super().__init__()
-        self.capability = capability
-        self._destination = (client, path)
         self._connect(client, path)
+        self.capability = capability
 
 
 class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
                             interface_name="org.bluez.AgentManager1"):
 
-    agents: list[Agent] = None
-
-    def register_agent(self, agent: Agent) -> None:
+    async def add_agent(self, agent: Agent) -> None:
         raise NotImplementedError
 
-    def unregister_agent(self, agent: Agent) -> None:
+    async def del_agent(self, agent: Agent) -> None:
         raise NotImplementedError
 
-    def set_default_agent(self, agent: Agent) -> None:
+    def get_agent(self, client, path) -> Optional[Agent]:
         raise NotImplementedError
 
-    def get_agent(self, client, path):
-        for agent in self.agents:
-            if agent._destination == (client, path):
-                return agent
-        return None
+    async def set_default_agent(self, agent: Agent) -> None:
+        raise NotImplementedError
 
     @dbus_method_async(
         input_signature="os",
@@ -46,7 +41,7 @@ class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
         sender = sdbus.get_current_message().sender
         capability = capability or "KeyboardDisplay"  # Fallback to default capability.
         logging.debug(f"Client {sender} requested to register agent {agent}")
-        self.register_agent(Agent(capability, sender, agent))
+        await self.add_agent(Agent(sender, agent, capability))
 
     @dbus_method_async(
         input_signature="o",
@@ -55,7 +50,7 @@ class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to unregister agent {agent}")
         if agent_ := self.get_agent(sender, agent):
-            self.unregister_agent(agent_)
+            await self.del_agent(agent_)
 
     @dbus_method_async(
         input_signature="o",
@@ -64,4 +59,4 @@ class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to set {agent} as default agent")
         if agent_ := self.get_agent(sender, agent):
-            self.set_default_agent(agent_)
+            await self.set_default_agent(agent_)

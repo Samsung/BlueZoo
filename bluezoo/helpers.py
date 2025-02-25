@@ -23,6 +23,14 @@ class NoneTask:
         return self._cancelled
 
 
+class DBusClientMixin:
+    """Mixin for convenient way of getting D-Bus proxy client destination."""
+
+    def get_client(self) -> tuple[str, str]:
+        """Return the client destination."""
+        return self._dbus.service_name, self._dbus.object_path
+
+
 # Method decorator that sets the Unprivileged flag by default.
 dbus_method_async = partial(sdbus.dbus_method_async,
                             flags=sdbus.DbusUnprivilegedFlag)

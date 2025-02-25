@@ -3,8 +3,10 @@
 
 import asyncio
 import logging
+from collections import defaultdict
 
 from sdbus import DbusObjectManagerInterfaceAsync
+from sdbus_async.dbus_daemon import FreedesktopDbus
 
 from .adapter import Adapter
 from .controller import Controller
@@ -15,6 +17,12 @@ class BluezMockService:
 
     def __init__(self):
 
+        # Proxy for the D-Bus daemon interface used
+        # for listening to ownership changes.
+        self.dbus = FreedesktopDbus()
+        self.dbus_task = asyncio.create_task(self._client_lost_task())
+        self.dbus_clients: dict[str, list[asyncio.Event]] = defaultdict(list)
+
         self.manager = DbusObjectManagerInterfaceAsync()
         self.manager.export_to_dbus("/")
 
@@ -22,6 +30,18 @@ class BluezMockService:
         self.manager.export_with_manager(self.controller.get_object_path(), self.controller)
 
         self.adapters: dict[int, Adapter] = {}
+
+    async def _client_lost_task(self):
+        async for _, old, new in self.dbus.name_owner_changed.catch():
+            if old and not new:  # Client lost.
+                for client in self.dbus_clients.pop(old, []):
+                    client.set()
+
+    async def wait_for_client_lost(self, client: str):
+        """Wait until the D-Bus client is lost."""
+        event = asyncio.Event()
+        self.dbus_clients[client].append(event)
+        await event.wait()
 
     def add_adapter(self, id: int, address: str):
         logging.info(f"Adding adapter {id} with address {address}")

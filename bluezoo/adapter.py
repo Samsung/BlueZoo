@@ -76,13 +76,25 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
 
-    async def register_advertisement(self, advertisement):
-        self.advertisements[advertisement.destination] = advertisement
+    async def add_le_advertisement(self, advertisement):
+
+        self.advertisements[advertisement.get_client()] = advertisement
+
+        async def wait_for_client_lost():
+            client, path = advertisement.get_client()
+            await self.controller.service.wait_for_client_lost(client)
+            logging.debug(f"Client {client} lost, removing LE advertisement {path}")
+            await self.del_le_advertisement(advertisement)
+        advertisement.client_lost_task = asyncio.create_task(wait_for_client_lost())
+
         await self.ActiveInstances.set_async(self.advertisement_slots_active)
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
-    async def unregister_advertisement(self, advertisement):
-        self.advertisements.pop(advertisement.destination)
+    async def del_le_advertisement(self, advertisement):
+
+        advertisement.client_lost_task.cancel()
+        self.advertisements.pop(advertisement.get_client())
+
         await self.ActiveInstances.set_async(self.advertisement_slots_active)
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
