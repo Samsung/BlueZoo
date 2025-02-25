@@ -117,6 +117,17 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("default-agent")
             await proc.expect("Default agent request successful")
 
+    async def test_discoverable(self):
+        async with await client() as proc:
+
+            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("discoverable on")
+            await proc.expect("Changing discoverable on succeeded")
+
+            # Verify that the timeout works as expected.
+            await proc.write("discoverable-timeout 1")
+            await proc.expect("Discoverable: no", timeout=1.5)
+
     async def test_scan(self):
         async with await client() as proc:
 

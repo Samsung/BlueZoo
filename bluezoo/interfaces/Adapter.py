@@ -95,6 +95,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
     @DiscoverableTimeout.setter
     def DiscoverableTimeout_setter(self, value: int):
         self.discoverable_timeout = value
+        self.set_discoverable(self.discoverable)
 
     @dbus_property_async("b")
     def Pairable(self) -> bool:
@@ -111,6 +112,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
     @PairableTimeout.setter
     def PairableTimeout_setter(self, value: int):
         self.pairable_timeout = value
+        self.set_pairable(self.pairable)
 
     @dbus_property_async("b")
     def Discovering(self) -> bool:
