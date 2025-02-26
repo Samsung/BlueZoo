@@ -46,10 +46,10 @@ class DBusClientMixin:
 
     async def properties_setup_sync_task(self):
         """Synchronize cached properties with the D-Bus service."""
-        self._props_watch_task = asyncio.create_task(self._props_watch())
-        weakref.finalize(self, self._props_watch_task_cancel)
         for k, v in (await self.properties_get_all_dict()).items():
             getattr(self, k).dbus_property.cached_value = v
+        self._props_watch_task = asyncio.create_task(self._props_watch())
+        weakref.finalize(self, self._props_watch_task_cancel)
 
     def get_client(self) -> tuple[str, str]:
         """Return the client destination."""
@@ -88,3 +88,12 @@ def validate_bt_address(address: str):
     if re_bt_address.match(address) is None:
         raise ValueError("Invalid Bluetooth address")
     return address
+
+
+def expand_bt_uuid(uuid: str):
+    """Expand the given Bluetooth UUID."""
+    re_bt_uuid = re.compile(r"^(0x)?([0-9A-Fa-f]{4})$")
+    if match := re_bt_uuid.match(uuid):
+        uuid = match.group(2).lower()
+        return f"0000{uuid}-0000-1000-8000-00805f9b34fb"
+    return uuid

@@ -4,10 +4,12 @@
 import asyncio
 import logging
 import random
+from typing import Optional
 
 from .device import Device
-from .helpers import NoneTask
-from .interfaces import AdapterInterface, LEAdvertisingManagerInterface
+from .helpers import NoneTask, expand_bt_uuid
+from .interfaces import AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterface
+from .interfaces.GattManager import GattApplication, GattService
 
 # List of predefined device names.
 TEST_NAMES = (
@@ -20,7 +22,7 @@ TEST_NAMES = (
 )
 
 
-class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
+class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterface):
 
     # Number of supported advertisement instances per adapter.
     SUPPORTED_ADVERTISEMENT_INSTANCES = 15
@@ -45,6 +47,8 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
         self.uuids = []
 
         self.advertisements = {}
+        self.gatt_apps = {}
+        self.gatt_handle_counter = 0
         self.devices = {}
 
     def get_object_path(self):
@@ -65,6 +69,17 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
     @property
     def advertisement_slots_available(self):
         return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
+
+    async def update_uuids(self):
+        uuids = set()
+
+        # Gather all UUIDs from GATT applications.
+        for app in self.gatt_apps.values():
+            for obj in app.objects.values():
+                if isinstance(obj, GattService) and obj.Primary.get():
+                    uuids.add(expand_bt_uuid(obj.UUID.get()))
+
+        await self.UUIDs.set_async(list(uuids))
 
     async def start_discovering(self):
         logging.info(f"Starting discovery on adapter {self.id}")
@@ -97,6 +112,40 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
 
         await self.ActiveInstances.set_async(self.advertisement_slots_active)
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
+
+    async def add_gatt_application(self, app: GattApplication) -> None:
+        logging.info("Adding GATT application")
+
+        self.gatt_apps[app.get_client()] = app
+
+        for obj in app.objects.values():
+            self.gatt_handle_counter += 1
+            await obj.Handle.set_async(self.gatt_handle_counter)
+
+        await self.update_uuids()
+
+        async def wait_for_client_lost():
+            client, path = app.get_client()
+            await self.controller.service.wait_for_client_lost(client)
+            logging.debug(f"Client {client} lost, removing GATT application {path}")
+            await self.del_gatt_application(app)
+        async def wait_for_object_removed():
+            await app.object_removed.wait()
+            _, path = app.get_client()
+            logging.debug(f"Object removed, removing GATT application {path}")
+            await self.del_gatt_application(app)
+        app.client_lost_task = asyncio.create_task(asyncio.wait(
+            [wait_for_client_lost(), wait_for_object_removed()],
+            return_when=asyncio.FIRST_COMPLETED))
+
+    async def del_gatt_application(self, app: GattApplication) -> None:
+        logging.info("Removing GATT application")
+        app.client_lost_task.cancel()
+        self.gatt_apps.pop(app.get_client())
+        await self.update_uuids()
+
+    def get_gatt_application(self, client, path) -> Optional[GattApplication]:
+        self.gatt_apps.get((client, path))
 
     async def add_device(self, device: Device):
         device.peer = self  # Set the device's peer adapter.

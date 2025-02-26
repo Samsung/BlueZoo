@@ -126,6 +126,10 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
     def UUIDs(self) -> list[str]:
         return self.uuids
 
+    @UUIDs.setter_private
+    def UUIDs_setter(self, value: list[str]):
+        self.uuids = value
+
     @dbus_property_async("as")
     def Roles(self) -> list[str]:
         return ["central", "peripheral"]

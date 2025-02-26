@@ -185,6 +185,31 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             # scanner to pick up the new advertisement data.
             await proc.expect("Name: BLE-Device-42", timeout=1.5)
 
+    async def test_gatt_application(self):
+        async with await client() as proc:
+
+            await proc.write("gatt.register-service 0xF100")
+            await proc.expect("Primary (yes/no):", eol=False)
+            await proc.write("yes")
+
+            await proc.write("gatt.register-characteristic 0xF110 read,write")
+            await proc.expect("Enter value:", eol=False)
+            await proc.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
+
+            await proc.write("gatt.register-characteristic 0xF120 read,notify")
+            await proc.expect("Enter value:", eol=False)
+            await proc.write("0x05 0x06 0x07 0x08")
+
+            await proc.write("gatt.register-descriptor 0xF121 read")
+            await proc.expect("Enter value:", eol=False)
+            await proc.write("0x44 0x45 0x53 0x43 0x52 0x49 0x50 0x54 0x4F 0x52")
+
+            await proc.write("gatt.register-application")
+            # Verify that the service handle was assigned.
+            await proc.expect("/org/bluez/app/service0")
+            # Verify that new service was added to the adapter.
+            await proc.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
+
     async def test_pair(self):
         async with await client() as proc:
 
