@@ -17,7 +17,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
     async def stop_discovering(self) -> None:
         raise NotImplementedError
 
-    def remove_device(self, device) -> None:
+    async def del_device(self, device) -> None:
         raise NotImplementedError
 
     def set_discoverable(self, enabled: bool) -> None:
@@ -46,7 +46,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
     async def RemoveDevice(self, device: str) -> None:
         if device not in self.devices:
             return
-        self.remove_device(self.devices[device])
+        await self.del_device(self.devices[device])
 
     @dbus_property_async("s")
     def Address(self) -> str:

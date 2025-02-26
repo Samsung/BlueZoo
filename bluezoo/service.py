@@ -15,7 +15,7 @@ from .device import Device
 
 class BluezMockService:
 
-    def __init__(self):
+    def __init__(self, scan_interval: int):
 
         # Proxy for the D-Bus daemon interface used
         # for listening to ownership changes.
@@ -30,6 +30,7 @@ class BluezMockService:
         self.manager.export_with_manager(self.controller.get_object_path(), self.controller)
 
         self.adapters: dict[int, Adapter] = {}
+        self.scan_interval = scan_interval
 
     async def _client_lost_task(self):
         async for _, old, new in self.dbus.name_owner_changed.catch():
@@ -74,21 +75,21 @@ class BluezMockService:
                     # Check if adapter has enabled LE advertising.
                     if adapter.advertisement_slots_active > 0:
                         adv = next(iter(adapter.advertisements.values()))
-                        adv_props = await adv.properties_get_all_dict()
                         # The LE advertisement discoverable property is not mandatory,
                         # but if present, it overrides the adapter's property.
-                        if not adv_props.get("Discoverable", adapter.discoverable):
+                        if not adv.Discoverable.get(adapter.discoverable):
                             continue
                         device = Device(adapter)
-                        device.name_ = adv_props.get("LocalName", adapter.name)
-                        device.appearance = adv_props.get("Appearance", 0)
-                        device.uuids = adv_props.get("ServiceUUIDs", [])
-                        device.service_data = adv_props.get("ServiceData", {})
+                        device.name_ = adv.LocalName.get(adapter.name)
+                        device.appearance = adv.Appearance.get(0)
+                        device.uuids = adv.ServiceUUIDs.get([])
+                        device.service_data = adv.ServiceData.get({})
                     # Check if adapter has enabled BR/EDR advertising.
                     elif adapter.discoverable:
                         device = Device(adapter)
                     if device is not None:
                         # Report discoverable device on our adapter.
-                        self.adapters[id].add_device(device)
-                await asyncio.sleep(10)
+                        await self.adapters[id].add_device(device)
+                # Wait for the next scan.
+                await asyncio.sleep(self.scan_interval)
         return asyncio.create_task(task())

@@ -10,12 +10,11 @@ from ..helpers import dbus_method_async, DBusClientMixin
 from .Agent import AgentInterface
 
 
-class Agent(AgentInterface, DBusClientMixin):
+class Agent(DBusClientMixin, AgentInterface):
     """D-Bus client for the Agent interface."""
 
-    def __init__(self, client, path, capability: str):
-        super().__init__()
-        self._connect(client, path)
+    def __init__(self, service, path, capability: str):
+        super().__init__(service, path)
         self.capability = capability
 
 

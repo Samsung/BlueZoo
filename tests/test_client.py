@@ -75,6 +75,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         self._mock = await asyncio.create_subprocess_exec(
             "bluetoothd-mock", "--verbose",
             "--auto-enable",
+            "--scan-interval=1",
             "--adapter=00:00:00:01:00:00",
             "--adapter=00:00:00:02:00:00",
             stderr=asyncio.subprocess.PIPE)
@@ -156,13 +157,11 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         async with await client() as proc:
 
             await proc.write("select 00:00:00:01:00:00")
-            await proc.write("menu advertise")
-            await proc.write("name BLE-Device")
-            await proc.write("appearance 0x00a0")
-            await proc.write("uuids 0xFFF1")
-            await proc.write("service 0xFFF1 0xDE 0xAD 0xBE 0xEF")
-            await proc.write("discoverable on")
-            await proc.write("back")
+            await proc.write("advertise.name BLE-Device")
+            await proc.write("advertise.appearance 0x00a0")
+            await proc.write("advertise.uuids 0xFFF1")
+            await proc.write("advertise.service 0xFFF1 0xDE 0xAD 0xBE 0xEF")
+            await proc.write("advertise.discoverable on")
             await proc.write("advertise peripheral")
             await proc.expect("Advertising object registered")
 
@@ -175,6 +174,16 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Name: BLE-Device")
             await proc.expect("Appearance: 0x00a0")
             await proc.expect("ServiceData Key: 0xFFF1")
+
+            # Update the advertisement data and verify that the changes
+            # are visible to the scanner.
+            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("advertise.name BLE-Device-42")
+
+            await proc.write("select 00:00:00:02:00:00")
+            # The scan interval is 1 second, so we need to wait for the
+            # scanner to pick up the new advertisement data.
+            await proc.expect("Name: BLE-Device-42", timeout=1.5)
 
     async def test_pair(self):
         async with await client() as proc:

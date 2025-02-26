@@ -98,16 +98,18 @@ class Adapter(AdapterInterface, LEAdvertisingManagerInterface):
         await self.ActiveInstances.set_async(self.advertisement_slots_active)
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
-    def add_device(self, device: Device):
+    async def add_device(self, device: Device):
         device.peer = self  # Set the device's peer adapter.
         path = device.get_object_path()
         if path in self.devices:
+            logging.debug(f"Updating device {device.address} in adapter {self.id}")
+            await self.devices[path].properties_sync(device)
             return
         logging.info(f"Adding device {device.address} to adapter {self.id}")
         self.controller.service.manager.export_with_manager(path, device)
         self.devices[path] = device
 
-    def remove_device(self, device: Device):
+    async def del_device(self, device: Device):
         logging.info(f"Removing device {device.address} from adapter {self.id}")
         self.devices.pop(device.get_object_path())
         self.controller.service.manager.remove_managed_object(device)

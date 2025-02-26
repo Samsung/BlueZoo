@@ -10,12 +10,11 @@ from ..helpers import dbus_method_async, dbus_property_async, DBusClientMixin
 from .LEAdvertisement import LEAdvertisementInterface
 
 
-class LEAdvertisement(LEAdvertisementInterface, DBusClientMixin):
+class LEAdvertisement(DBusClientMixin, LEAdvertisementInterface):
     """D-Bus client for the LEAdvertisement1 interface."""
 
-    def __init__(self, client, path, options):
-        super().__init__()
-        self._connect(client, path)
+    def __init__(self, service, path, options):
+        super().__init__(service, path)
         self.options = options
 
 
@@ -39,7 +38,9 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to register advertisement {advertisement}")
-        await self.add_le_advertisement(LEAdvertisement(sender, advertisement, options))
+        advertisement = LEAdvertisement(sender, advertisement, options)
+        await advertisement.properties_setup_sync_task()
+        await self.add_le_advertisement(advertisement)
 
     @dbus_method_async(
         input_signature="o",

@@ -58,6 +58,17 @@ class Device(DeviceInterface):
     def name_setter(self, value):
         self.name__ = value
 
+    async def properties_sync(self, device):
+        """Synchronize the properties with another device."""
+        if self.name_ != device.name:
+            await self.Name.set_async(device.name)
+        if self.appearance != device.appearance:
+            await self.Appearance.set_async(device.appearance)
+        if self.uuids != device.uuids:
+            await self.ServiceUUIDs.set_async(device.uuids)
+        if self.service_data != device.service_data:
+            await self.ServiceData.set_async(device.service)
+
     async def connect(self) -> None:
 
         async def task():
@@ -108,7 +119,7 @@ class Device(DeviceInterface):
             self.pairing_timeout_task.cancel()
             # Add peer adapter as a paired device to the device's adapter.
             self.paired_device = Device(self.peer, paired=True, bonded=True)
-            self.adapter.add_device(self.paired_device)
+            await self.adapter.add_device(self.paired_device)
             # Mark the device as paired.
             await self.Paired.set_async(True)
             await self.Bonded.set_async(True)

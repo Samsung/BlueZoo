@@ -22,6 +22,9 @@ async def main_async():
         "--auto-enable", action="store_true",
         help="auto-enable adapters")
     parser.add_argument(
+        "--scan-interval", type=int, default=10,
+        help="interval between scans; default is %(default)s seconds")
+    parser.add_argument(
         "-a", "--adapter", metavar="ADDRESS", dest="adapters",
         action="append", type=validate_bt_address,
         help="adapter to use")
@@ -31,7 +34,7 @@ async def main_async():
 
     bus = setup_default_bus("session" if args.bus_session else "system")
     await bus.request_name_async("org.bluez", 0)
-    service = BluezMockService()
+    service = BluezMockService(args.scan_interval)
 
     for i, address in enumerate(args.adapters):
         adapter = service.add_adapter(i, address)

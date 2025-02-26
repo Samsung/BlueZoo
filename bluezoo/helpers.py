@@ -1,10 +1,14 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: MIT
 
+import asyncio
 import re
+import weakref
 from functools import partial
 
 import sdbus
+from sdbus.dbus_proxy_async_property import DbusPropertyAsyncProxyBind
+from sdbus.utils import parse_properties_changed
 
 
 class NoneTask:
@@ -24,11 +28,39 @@ class NoneTask:
 
 
 class DBusClientMixin:
-    """Mixin for convenient way of getting D-Bus proxy client destination."""
+    """Helper class for D-Bus client objects."""
+
+    def __init__(self, service: str, path: str):
+        super().__init__()
+        # Connect our client to the D-Bus service.
+        self._connect(service, path)
+
+    async def _props_watch(self):
+        interfaces = self.__class__.mro()
+        async for x in self.properties_changed.catch():
+            for k, v in parse_properties_changed(interfaces, x).items():
+                getattr(self, k).dbus_property.cached_value = v
+
+    def _props_watch_task_cancel(self):
+        self._props_watch_task.cancel()
+
+    async def properties_setup_sync_task(self):
+        """Synchronize cached properties with the D-Bus service."""
+        self._props_watch_task = asyncio.create_task(self._props_watch())
+        weakref.finalize(self, self._props_watch_task_cancel)
+        for k, v in (await self.properties_get_all_dict()).items():
+            getattr(self, k).dbus_property.cached_value = v
 
     def get_client(self) -> tuple[str, str]:
         """Return the client destination."""
         return self._dbus.service_name, self._dbus.object_path
+
+
+def DbusPropertyAsyncProxyBind_get(self, default=None):
+    """Return the property value or the default value."""
+    return getattr(self.dbus_property, "cached_value", default)
+# Bind the property getter to the DbusPropertyAsyncProxyBind class.
+DbusPropertyAsyncProxyBind.get = DbusPropertyAsyncProxyBind_get
 
 
 # Method decorator that sets the Unprivileged flag by default.

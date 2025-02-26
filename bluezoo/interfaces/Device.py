@@ -63,6 +63,10 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
     def Name(self) -> str:
         return self.name_
 
+    @Name.setter_private
+    def Name_setter(self, value: str):
+        self.name_ = value
+
     @dbus_property_async("s")
     def Alias(self) -> str:
         return self.name
@@ -79,9 +83,17 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
     def Appearance(self) -> int:
         return self.appearance
 
+    @Appearance.setter_private
+    def Appearance_setter(self, value: int):
+        self.appearance = value
+
     @dbus_property_async("as")
     def UUIDs(self) -> list[str]:
         return self.uuids
+
+    @UUIDs.setter_private
+    def UUIDs_setter(self, value: list[str]):
+        self.uuids = value
 
     @dbus_property_async("b")
     def Paired(self) -> bool:
@@ -130,6 +142,10 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_property_async("a{sv}")
     def ServiceData(self) -> dict[str, tuple[str, Any]]:
         return self.service_data
+
+    @ServiceData.setter_private
+    def ServiceData_setter(self, value: dict[str, tuple[str, Any]]):
+        self.service_data = value
 
     @dbus_property_async("b")
     def ServicesResolved(self) -> bool:
