@@ -62,6 +62,8 @@ class BluezMockService:
         adapter which is powered and discoverable, and reports that adapter as
         a new device. The task runs indefinitely until it is cancelled.
         """
+        is_scan_br = self.adapters[id].scan_filter_transport in ("auto", "bredr")
+        is_scan_le = self.adapters[id].scan_filter_transport in ("auto", "le")
         async def task():
             while True:
                 logging.info(f"Scanning for devices on adapter {id}")
@@ -71,13 +73,19 @@ class BluezMockService:
                         continue
                     if not adapter.powered:
                         continue
+                    # The adapter can be discoverable either if BR/EDR advertising
+                    # is explicitly enabled or when the scan filter enables it.
+                    is_adapter_discoverable = (
+                        adapter.discoverable
+                        or (adapter.discovering and
+                            adapter.scan_filter_discoverable))
                     device = None
                     # Check if adapter has enabled LE advertising.
-                    if adapter.advertisement_slots_active > 0:
+                    if is_scan_le and adapter.advertisement_slots_active > 0:
                         adv = next(iter(adapter.advertisements.values()))
                         # The LE advertisement discoverable property is not mandatory,
                         # but if present, it overrides the adapter's property.
-                        if not adv.Discoverable.get(adapter.discoverable):
+                        if not adv.Discoverable.get(is_adapter_discoverable):
                             continue
                         device = Device(adapter)
                         device.name_ = adv.LocalName.get(adapter.name)
@@ -85,7 +93,7 @@ class BluezMockService:
                         device.uuids = adv.ServiceUUIDs.get([])
                         device.service_data = adv.ServiceData.get({})
                     # Check if adapter has enabled BR/EDR advertising.
-                    elif adapter.discoverable:
+                    elif is_scan_br and is_adapter_discoverable:
                         device = Device(adapter)
                     if device is not None:
                         # Report discoverable device on our adapter.

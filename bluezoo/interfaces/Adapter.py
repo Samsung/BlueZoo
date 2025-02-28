@@ -20,6 +20,9 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
     async def del_device(self, device) -> None:
         raise NotImplementedError
 
+    def set_discovery_filter(self, properties: dict[str, tuple[str, Any]]) -> None:
+        raise NotImplementedError
+
     def set_discoverable(self, enabled: bool) -> None:
         raise NotImplementedError
 
@@ -38,7 +41,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         input_signature="a{sv}",
         input_args_names=("properties",))
     async def SetDiscoveryFilter(self, properties: dict[str, tuple[str, Any]]) -> None:
-        raise NotImplementedError
+        self.set_discovery_filter(properties)
 
     @dbus_method_async(
         input_signature="o",

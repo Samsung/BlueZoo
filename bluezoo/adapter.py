@@ -4,7 +4,7 @@
 import asyncio
 import logging
 import random
-from typing import Optional
+from typing import Any, Optional
 
 from .device import Device
 from .helpers import NoneTask, expand_bt_uuid
@@ -45,6 +45,12 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.discovering = False
         self.discovering_task = NoneTask()
         self.uuids = []
+
+        self.scan_filter_uuids = []
+        self.scan_filter_transport = "auto"
+        self.scan_filter_duplicate = False
+        self.scan_filter_discoverable = False
+        self.scan_filter_pattern = None
 
         self.advertisements = {}
         self.gatt_apps = {}
@@ -162,6 +168,18 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         logging.info(f"Removing device {device.address} from adapter {self.id}")
         self.devices.pop(device.get_object_path())
         self.controller.service.manager.remove_managed_object(device)
+
+    def set_discovery_filter(self, properties: dict[str, tuple[str, Any]]) -> None:
+        if value := properties.get("UUIDs"):
+            self.scan_filter_uuids = [expand_bt_uuid(x[1]) for x in value]
+        if value := properties.get("Transport"):
+            self.scan_filter_transport = value[1]
+        if value := properties.get("DuplicateData"):
+            self.scan_filter_duplicate = value[1]
+        if value := properties.get("Discoverable"):
+            self.scan_filter_discoverable = value[1]
+        if value := properties.get("Pattern"):
+            self.scan_filter_pattern = value[1]
 
     def set_discoverable(self, enabled: bool):
         self.discoverable = enabled
