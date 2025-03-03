@@ -7,7 +7,8 @@ import weakref
 from functools import partial
 
 import sdbus
-from sdbus.dbus_proxy_async_property import DbusPropertyAsyncProxyBind
+from sdbus.dbus_proxy_async_property import (DbusPropertyAsync, DbusPropertyAsyncLocalBind,
+                                             DbusPropertyAsyncProxyBind, DbusRemoteObjectMeta)
 from sdbus.utils import parse_properties_changed
 
 
@@ -27,6 +28,41 @@ class NoneTask:
         return self._cancelled
 
 
+class DBusPropertyAsyncProxyBindWithCache(DbusPropertyAsyncProxyBind):
+
+    def __init__(self, dbus_property, local_object, proxy_meta):
+        super().__init__(dbus_property, proxy_meta)
+        self.local_object_ref = weakref.ref(local_object)
+        if not hasattr(local_object, "_cache"):
+            local_object._cache = {}
+
+    def cache(self, value):
+        """Cache the property value."""
+        local_object = self.local_object_ref()
+        property_name = self.dbus_property.property_name
+        local_object._cache[property_name] = value
+
+    def get(self, default=None):
+        """Return the property value or the default value."""
+        local_object = self.local_object_ref()
+        property_name = self.dbus_property.property_name
+        return local_object._cache.get(property_name, default)
+
+
+def DbusPropertyAsync__get__(self, obj, obj_class):
+    if obj is None:
+        return self
+    dbus_meta = obj._dbus
+    if isinstance(dbus_meta, DbusRemoteObjectMeta):
+        return DBusPropertyAsyncProxyBindWithCache(self, obj, dbus_meta)
+    else:
+        return DbusPropertyAsyncLocalBind(self, obj)
+
+
+# Monkey-patch the library to support property caching.
+DbusPropertyAsync.__get__ = DbusPropertyAsync__get__
+
+
 class DBusClientMixin:
     """Helper class for D-Bus client objects."""
 
@@ -39,7 +75,7 @@ class DBusClientMixin:
         interfaces = self.__class__.mro()
         async for x in self.properties_changed.catch():
             for k, v in parse_properties_changed(interfaces, x).items():
-                getattr(self, k).dbus_property.cached_value = v
+                getattr(self, k).cache(v)
 
     def _props_watch_task_cancel(self):
         self._props_watch_task.cancel()
@@ -47,22 +83,13 @@ class DBusClientMixin:
     async def properties_setup_sync_task(self):
         """Synchronize cached properties with the D-Bus service."""
         for k, v in (await self.properties_get_all_dict()).items():
-            getattr(self, k).dbus_property.cached_value = v
+            getattr(self, k).cache(v)
         self._props_watch_task = asyncio.create_task(self._props_watch())
         weakref.finalize(self, self._props_watch_task_cancel)
 
     def get_client(self) -> tuple[str, str]:
         """Return the client destination."""
         return self._dbus.service_name, self._dbus.object_path
-
-
-def DbusPropertyAsyncProxyBind_get(self, default=None):
-    """Return the property value or the default value."""
-    return getattr(self.dbus_property, "cached_value", default)
-
-
-# Bind the property getter to the DbusPropertyAsyncProxyBind class.
-DbusPropertyAsyncProxyBind.get = DbusPropertyAsyncProxyBind_get
 
 
 # Method decorator that sets the Unprivileged flag by default.
