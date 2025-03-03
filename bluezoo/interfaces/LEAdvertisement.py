@@ -5,7 +5,7 @@ from typing import Any
 
 import sdbus
 
-from ..helpers import dbus_method_async, dbus_property_async
+from ..utils import dbus_method_async, dbus_property_async
 
 
 class LEAdvertisementInterface(sdbus.DbusInterfaceCommonAsync,

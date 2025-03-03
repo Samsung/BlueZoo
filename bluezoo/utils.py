@@ -59,6 +59,8 @@ class DBusClientMixin:
 def DbusPropertyAsyncProxyBind_get(self, default=None):
     """Return the property value or the default value."""
     return getattr(self.dbus_property, "cached_value", default)
+
+
 # Bind the property getter to the DbusPropertyAsyncProxyBind class.
 DbusPropertyAsyncProxyBind.get = DbusPropertyAsyncProxyBind_get
 
@@ -82,18 +84,29 @@ def setup_default_bus(address: str):
     return bus
 
 
-def validate_bt_address(address: str):
+class BluetoothAddress(str):
     """Validate the given Bluetooth address."""
-    re_bt_address = re.compile(r"^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
-    if re_bt_address.match(address) is None:
-        raise ValueError("Invalid Bluetooth address")
-    return address
+
+    re_address = re.compile(r"^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+
+    def __new__(cls, address: str):
+        if cls.re_address.match(address) is None:
+            raise ValueError("Invalid Bluetooth address")
+        return super().__new__(cls, address)
 
 
-def expand_bt_uuid(uuid: str):
-    """Expand the given Bluetooth UUID."""
-    re_bt_uuid = re.compile(r"^(0x)?([0-9A-Fa-f]{4})$")
-    if match := re_bt_uuid.match(uuid):
-        uuid = match.group(2).lower()
-        return f"0000{uuid}-0000-1000-8000-00805f9b34fb"
-    return uuid
+class BluetoothUUID(str):
+    """Expand the given Bluetooth UUID to the full 128-bit form."""
+
+    re_uuid_full = re.compile(
+        r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    re_uuid_hex = re.compile(r"^(0x)?([0-9a-f]{1,8})$")
+
+    def __new__(cls, uuid: str):
+        uuid = uuid.lower()  # Normalize the UUID to lowercase.
+        if match := cls.re_uuid_hex.match(uuid):
+            v = hex(int(match.group(2), 16))[2:].zfill(8)
+            uuid = v + "-0000-1000-8000-00805f9b34fb"
+        elif not cls.re_uuid_full.match(uuid):
+            raise ValueError("Invalid Bluetooth UUID")
+        return super().__new__(cls, uuid)

@@ -5,16 +5,16 @@ from typing import Any
 
 import sdbus
 
-from ..helpers import dbus_method_async, dbus_property_async
+from ..utils import dbus_method_async, dbus_property_async
 
 
 class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
                       interface_name="org.bluez.Device1"):
 
-    async def connect(self) -> None:
+    async def connect(self, uuid: str = None) -> None:
         raise NotImplementedError
 
-    async def disconnect(self) -> None:
+    async def disconnect(self, uuid: str = None) -> None:
         raise NotImplementedError
 
     async def pair(self) -> None:
@@ -35,13 +35,13 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         input_signature="s",
         input_args_names=("uuid",))
     async def ConnectProfile(self, uuid: str) -> None:
-        raise NotImplementedError
+        await self.connect(uuid)
 
     @dbus_method_async(
         input_signature="s",
         input_args_names=("uuid",))
     async def DisconnectProfile(self, uuid: str) -> None:
-        raise NotImplementedError
+        await self.disconnect(uuid)
 
     @dbus_method_async()
     async def Pair(self) -> None:

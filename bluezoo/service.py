@@ -11,6 +11,7 @@ from sdbus_async.dbus_daemon import FreedesktopDbus
 from .adapter import Adapter
 from .controller import Controller
 from .device import Device
+from .utils import BluetoothUUID
 
 
 class BluezMockService:
@@ -64,6 +65,7 @@ class BluezMockService:
         """
         is_scan_br = self.adapters[id].scan_filter_transport in ("auto", "bredr")
         is_scan_le = self.adapters[id].scan_filter_transport in ("auto", "le")
+
         async def task():
             while True:
                 logging.info(f"Scanning for devices on adapter {id}")
@@ -90,8 +92,9 @@ class BluezMockService:
                         device = Device(adapter)
                         device.name_ = adv.LocalName.get(adapter.name)
                         device.appearance = adv.Appearance.get(0)
-                        device.uuids = adv.ServiceUUIDs.get([])
-                        device.service_data = adv.ServiceData.get({})
+                        device.uuids = [BluetoothUUID(x) for x in adv.ServiceUUIDs.get([])]
+                        device.service_data = {BluetoothUUID(k): v
+                                               for k, v in adv.ServiceData.get({}).items()}
                     # Check if adapter has enabled BR/EDR advertising.
                     elif is_scan_br and is_adapter_discoverable:
                         device = Device(adapter)

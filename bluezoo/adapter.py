@@ -7,9 +7,9 @@ import random
 from typing import Any, Optional
 
 from .device import Device
-from .helpers import NoneTask, expand_bt_uuid
 from .interfaces import AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterface
 from .interfaces.GattManager import GattApplication, GattService
+from .utils import BluetoothUUID, NoneTask
 
 # List of predefined device names.
 TEST_NAMES = (
@@ -83,7 +83,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         for app in self.gatt_apps.values():
             for obj in app.objects.values():
                 if isinstance(obj, GattService) and obj.Primary.get():
-                    uuids.add(expand_bt_uuid(obj.UUID.get()))
+                    uuids.add(BluetoothUUID(obj.UUID.get()))
 
         await self.UUIDs.set_async(list(uuids))
 
@@ -125,8 +125,10 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.gatt_apps[app.get_client()] = app
 
         for obj in app.objects.values():
-            self.gatt_handle_counter += 1
-            await obj.Handle.set_async(self.gatt_handle_counter)
+            if obj.Handle.get() == 0:
+                self.gatt_handle_counter += 1
+                # Assign handle values to objects that don't have one.
+                await obj.Handle.set_async(self.gatt_handle_counter)
 
         await self.update_uuids()
 
@@ -135,11 +137,13 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
             await self.controller.service.wait_for_client_lost(client)
             logging.debug(f"Client {client} lost, removing GATT application {path}")
             await self.del_gatt_application(app)
+
         async def wait_for_object_removed():
             await app.object_removed.wait()
             _, path = app.get_client()
             logging.debug(f"Object removed, removing GATT application {path}")
             await self.del_gatt_application(app)
+
         app.client_lost_task = asyncio.create_task(asyncio.wait(
             [wait_for_client_lost(), wait_for_object_removed()],
             return_when=asyncio.FIRST_COMPLETED))
@@ -171,7 +175,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
 
     def set_discovery_filter(self, properties: dict[str, tuple[str, Any]]) -> None:
         if value := properties.get("UUIDs"):
-            self.scan_filter_uuids = [expand_bt_uuid(x[1]) for x in value]
+            self.scan_filter_uuids = [BluetoothUUID(x[1]) for x in value]
         if value := properties.get("Transport"):
             self.scan_filter_transport = value[1]
         if value := properties.get("DuplicateData"):

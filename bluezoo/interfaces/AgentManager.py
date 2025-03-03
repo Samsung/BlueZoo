@@ -6,7 +6,7 @@ from typing import Optional
 
 import sdbus
 
-from ..helpers import dbus_method_async, DBusClientMixin
+from ..utils import DBusClientMixin, dbus_method_async
 from .Agent import AgentInterface
 
 

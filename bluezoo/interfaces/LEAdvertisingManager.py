@@ -6,7 +6,7 @@ from typing import Any
 
 import sdbus
 
-from ..helpers import dbus_method_async, dbus_property_async, DBusClientMixin
+from ..utils import DBusClientMixin, dbus_method_async, dbus_property_async
 from .LEAdvertisement import LEAdvertisementInterface
 
 

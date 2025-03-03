@@ -3,7 +3,7 @@
 
 import sdbus
 
-from ..helpers import dbus_method_async
+from ..utils import dbus_method_async
 
 
 class AgentInterface(sdbus.DbusInterfaceCommonAsync,

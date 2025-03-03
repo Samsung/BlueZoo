@@ -9,10 +9,10 @@ from typing import Any
 import sdbus
 from sdbus.utils import parse_get_managed_objects
 
-from .GattService import GattServiceInterface
+from ..utils import DBusClientMixin, dbus_method_async
 from .GattCharacteristic import GattCharacteristicInterface
 from .GattDescriptor import GattDescriptorInterface
-from ..helpers import dbus_method_async, DBusClientMixin
+from .GattService import GattServiceInterface
 
 
 class GattService(DBusClientMixin, GattServiceInterface):

@@ -3,7 +3,7 @@
 
 import sdbus
 
-from ..helpers import dbus_property_async
+from ..utils import dbus_property_async
 
 
 class GattServiceInterface(sdbus.DbusInterfaceCommonAsync,

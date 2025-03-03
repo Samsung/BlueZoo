@@ -5,8 +5,8 @@ import asyncio
 import logging
 from argparse import ArgumentParser
 
-from .helpers import setup_default_bus, validate_bt_address
 from .service import BluezMockService
+from .utils import BluetoothAddress, setup_default_bus
 
 
 async def main_async():
@@ -26,7 +26,7 @@ async def main_async():
         help="interval between scans; default is %(default)s seconds")
     parser.add_argument(
         "-a", "--adapter", metavar="ADDRESS", dest="adapters",
-        action="append", type=validate_bt_address,
+        action="append", type=BluetoothAddress,
         help="adapter to use")
 
     args = parser.parse_args()

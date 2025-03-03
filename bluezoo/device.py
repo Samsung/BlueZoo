@@ -4,8 +4,8 @@
 import asyncio
 import logging
 
-from .helpers import NoneTask
 from .interfaces import DeviceInterface
+from .utils import NoneTask
 
 
 class Device(DeviceInterface):
@@ -69,7 +69,7 @@ class Device(DeviceInterface):
         if self.service_data != device.service_data:
             await self.ServiceData.set_async(device.service)
 
-    async def connect(self) -> None:
+    async def connect(self, uuid: str = None) -> None:
 
         async def task():
             # Use the peer's adapter to connect with this device.
@@ -97,7 +97,7 @@ class Device(DeviceInterface):
         self.connecting_task = asyncio.create_task(task())
         await self.connecting_task
 
-    async def disconnect(self) -> None:
+    async def disconnect(self, uuid: str = None) -> None:
         self.connecting_task.cancel()
         self.connecting_timeout_task.cancel()
         logging.info(f"Disconnecting device {self.address}")
