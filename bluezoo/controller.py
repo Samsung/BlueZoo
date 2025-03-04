@@ -28,12 +28,12 @@ class Controller(AgentManagerInterface):
             self.agent = agent
         self.agents.append(agent)
 
-        async def wait_for_client_lost():
-            client, path = agent.get_client()
-            await self.service.wait_for_client_lost(client)
+        async def on_client_lost():
+            client, path = agent.get_client(), agent.get_object_path()
             logging.debug(f"Client {client} lost, removing agent {path}")
             await self.del_agent(agent)
-        agent.client_lost_task = asyncio.create_task(wait_for_client_lost())
+        self.service.on_client_lost(agent.get_client(), on_client_lost)
+        agent.on_client_lost = on_client_lost
 
         # If there is at least one agent, the adapters are pairable.
         for adapter in self.service.adapters.values():
@@ -45,7 +45,7 @@ class Controller(AgentManagerInterface):
 
         if agent == self.agent:
             self.agent = None
-        agent.client_lost_task.cancel()
+        self.service.on_client_lost_remove(agent.get_client(), agent.on_client_lost)
         self.agents.remove(agent)
 
         if self.agents:
@@ -59,7 +59,7 @@ class Controller(AgentManagerInterface):
 
     def get_agent(self, client, path) -> Optional[Agent]:
         for agent in self.agents:
-            if agent.get_client() == (client, path):
+            if agent.get_client() == client and agent.get_object_path() == path:
                 return agent
         return None
 

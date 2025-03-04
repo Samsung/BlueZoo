@@ -29,6 +29,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
 
     def __init__(self, controller, id: int, address: str):
         self.controller = controller
+        self.service = controller.service
         super().__init__()
 
         self.id = id
@@ -87,9 +88,10 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
 
         await self.UUIDs.set_async(list(uuids))
 
-    async def start_discovering(self):
+    async def start_discovering(self, client):
         logging.info(f"Starting discovery on adapter {self.id}")
-        self.discovering_task = self.controller.service.create_discovering_task(self.id)
+        self.service.on_client_lost(client, self.stop_discovering)
+        self.discovering_task = self.service.create_discovering_task(self.id)
         await self.Discovering.set_async(True)
 
     async def stop_discovering(self):
@@ -97,32 +99,32 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
 
-    async def add_le_advertisement(self, advertisement):
+    async def add_le_advertisement(self, adv):
+        logging.info(f"Adding LE advertisement {adv.get_object_path()}")
 
-        self.advertisements[advertisement.get_client()] = advertisement
+        self.advertisements[adv.get_destination()] = adv
 
-        async def wait_for_client_lost():
-            client, path = advertisement.get_client()
-            await self.controller.service.wait_for_client_lost(client)
-            logging.debug(f"Client {client} lost, removing LE advertisement {path}")
-            await self.del_le_advertisement(advertisement)
-        advertisement.client_lost_task = asyncio.create_task(wait_for_client_lost())
+        async def on_client_lost():
+            await self.del_le_advertisement(adv)
+        self.service.on_client_lost(adv.get_client(), on_client_lost)
+        adv.on_client_lost = on_client_lost
 
         await self.ActiveInstances.set_async(self.advertisement_slots_active)
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
-    async def del_le_advertisement(self, advertisement):
+    async def del_le_advertisement(self, adv):
+        logging.info(f"Removing LE advertisement {adv.get_object_path()}")
 
-        advertisement.client_lost_task.cancel()
-        self.advertisements.pop(advertisement.get_client())
+        self.service.on_client_lost_remove(adv.get_client(), adv.on_client_lost)
+        self.advertisements.pop(adv.get_destination())
 
         await self.ActiveInstances.set_async(self.advertisement_slots_active)
         await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
     async def add_gatt_application(self, app: GattApplication) -> None:
-        logging.info("Adding GATT application")
+        logging.info(f"Adding GATT application {app.get_object_path()}")
 
-        self.gatt_apps[app.get_client()] = app
+        self.gatt_apps[app.get_destination()] = app
 
         for obj in app.objects.values():
             if obj.Handle.get() == 0:
@@ -132,26 +134,26 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
 
         await self.update_uuids()
 
-        async def wait_for_client_lost():
-            client, path = app.get_client()
-            await self.controller.service.wait_for_client_lost(client)
-            logging.debug(f"Client {client} lost, removing GATT application {path}")
+        async def on_client_lost():
             await self.del_gatt_application(app)
+        self.service.on_client_lost(app.get_client(), on_client_lost)
+        app.on_client_lost = on_client_lost
 
         async def wait_for_object_removed():
             await app.object_removed.wait()
-            _, path = app.get_client()
+            path = app.get_object_path()
             logging.debug(f"Object removed, removing GATT application {path}")
             await self.del_gatt_application(app)
 
         app.client_lost_task = asyncio.create_task(asyncio.wait(
-            [wait_for_client_lost(), wait_for_object_removed()],
+            [wait_for_object_removed()],
             return_when=asyncio.FIRST_COMPLETED))
 
     async def del_gatt_application(self, app: GattApplication) -> None:
-        logging.info("Removing GATT application")
+        logging.info(f"Removing GATT application {app.get_object_path()}")
         app.client_lost_task.cancel()
-        self.gatt_apps.pop(app.get_client())
+        self.service.on_client_lost_remove(app.get_client(), app.on_client_lost)
+        self.gatt_apps.pop(app.get_destination())
         await self.update_uuids()
 
     def get_gatt_application(self, client, path) -> Optional[GattApplication]:
@@ -165,13 +167,13 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
             await self.devices[path].properties_sync(device)
             return
         logging.info(f"Adding device {device.address} to adapter {self.id}")
-        self.controller.service.manager.export_with_manager(path, device)
+        self.service.manager.export_with_manager(path, device)
         self.devices[path] = device
 
     async def del_device(self, device: Device):
         logging.info(f"Removing device {device.address} from adapter {self.id}")
         self.devices.pop(device.get_object_path())
-        self.controller.service.manager.remove_managed_object(device)
+        self.service.manager.remove_managed_object(device)
 
     def set_discovery_filter(self, properties: dict[str, tuple[str, Any]]) -> None:
         if value := properties.get("UUIDs"):

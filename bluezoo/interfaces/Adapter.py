@@ -11,7 +11,7 @@ from ..utils import dbus_method_async, dbus_property_async
 class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
                        interface_name="org.bluez.Adapter1"):
 
-    async def start_discovering(self) -> None:
+    async def start_discovering(self, client) -> None:
         raise NotImplementedError
 
     async def stop_discovering(self) -> None:
@@ -31,7 +31,8 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
 
     @dbus_method_async()
     async def StartDiscovery(self) -> None:
-        await self.start_discovering()
+        sender = sdbus.get_current_message().sender
+        await self.start_discovering(sender)
 
     @dbus_method_async()
     async def StopDiscovery(self) -> None:

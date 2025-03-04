@@ -87,9 +87,15 @@ class DBusClientMixin:
         self._props_watch_task = asyncio.create_task(self._props_watch())
         weakref.finalize(self, self._props_watch_task_cancel)
 
-    def get_client(self) -> tuple[str, str]:
-        """Return the client destination."""
-        return self._dbus.service_name, self._dbus.object_path
+    def get_client(self) -> str:
+        return self._dbus.service_name
+
+    def get_destination(self) -> str:
+        return (self.get_client(), self.get_object_path())
+
+    def get_object_path(self) -> str:
+        return self._dbus.object_path
+
 
 
 # Method decorator that sets the Unprivileged flag by default.

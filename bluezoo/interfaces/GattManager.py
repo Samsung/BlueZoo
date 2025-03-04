@@ -57,7 +57,7 @@ class GattApplication(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsync):
     async def object_manager_setup_sync_task(self, interfaces):
         """Synchronize cached objects with the D-Bus service."""
 
-        client, _ = self.get_client()
+        client = self.get_client()
         objects = parse_get_managed_objects(
             interfaces,
             await self.get_managed_objects(),

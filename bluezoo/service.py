@@ -14,6 +14,31 @@ from .device import Device
 from .utils import BluetoothUUID
 
 
+class EventEmitter:
+    """Event registration and emitting."""
+
+    def __init__(self):
+        self.listeners = defaultdict(list)
+
+    def __contains__(self, event: str):
+        return event in self.listeners
+
+    def on(self, event: str, coroutine):
+        self.listeners[event].append(coroutine)
+
+    def remove(self, event: str, coroutine=None):
+        """Remove the event listener or all listeners."""
+        if coroutine is not None:
+            self.listeners[event].remove(coroutine)
+        else:
+            self.listeners.pop(event, None)
+
+    async def emit(self, event: str, *args, **kwargs):
+        if event in self.listeners:
+            for coroutine in self.listeners[event]:
+                await coroutine(*args, **kwargs)
+
+
 class BluezMockService:
 
     def __init__(self, scan_interval: int):
@@ -22,7 +47,9 @@ class BluezMockService:
         # for listening to ownership changes.
         self.dbus = FreedesktopDbus()
         self.dbus_task = asyncio.create_task(self._client_lost_task())
-        self.dbus_clients: dict[str, list[asyncio.Event]] = defaultdict(list)
+
+        # Event emitter engine.
+        self.events = EventEmitter()
 
         self.manager = DbusObjectManagerInterfaceAsync()
         self.manager.export_to_dbus("/")
@@ -36,14 +63,18 @@ class BluezMockService:
     async def _client_lost_task(self):
         async for _, old, new in self.dbus.name_owner_changed.catch():
             if old and not new:  # Client lost.
-                for client in self.dbus_clients.pop(old, []):
-                    client.set()
+                event = f"client:lost:{old}"
+                if event in self.events:
+                    logging.debug(f"Client {old} lost")
+                    await self.events.emit(f"client:lost:{old}")
+                    self.events.remove(f"client:lost:{old}")
 
-    async def wait_for_client_lost(self, client: str):
-        """Wait until the D-Bus client is lost."""
-        event = asyncio.Event()
-        self.dbus_clients[client].append(event)
-        await event.wait()
+    def on_client_lost(self, client: str, coroutine):
+        """Execute the coroutine on the client lost event."""
+        self.events.on(f"client:lost:{client}", coroutine)
+
+    def on_client_lost_remove(self, client: str, coroutine):
+        self.events.remove(f"client:lost:{client}", coroutine)
 
     def add_adapter(self, id: int, address: str):
         logging.info(f"Adding adapter {id} with address {address}")
