@@ -9,7 +9,7 @@ from typing import Any, Optional
 from .device import Device
 from .interfaces import AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterface
 from .interfaces.GattManager import GattApplication, GattService
-from .utils import BluetoothUUID, NoneTask
+from .utils import BluetoothClass, BluetoothUUID, NoneTask
 
 # List of predefined device names.
 TEST_NAMES = (
@@ -35,7 +35,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.id = id
         self.address = address
         self.name_ = random.choice(TEST_NAMES)
-        self.class_ = 0
+        self.class_ = BluetoothClass(BluetoothClass.Major.Computer)
         self.powered = False
         self.discoverable = False
         self.discoverable_timeout = 180

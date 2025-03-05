@@ -4,6 +4,7 @@
 import asyncio
 import re
 import weakref
+from enum import IntFlag
 from functools import partial
 
 import sdbus
@@ -97,7 +98,6 @@ class DBusClientMixin:
         return self._dbus.object_path
 
 
-
 # Method decorator that sets the Unprivileged flag by default.
 dbus_method_async = partial(sdbus.dbus_method_async,
                             flags=sdbus.DbusUnprivilegedFlag)
@@ -126,6 +126,63 @@ class BluetoothAddress(str):
         if cls.re_address.match(address) is None:
             raise ValueError("Invalid Bluetooth address")
         return super().__new__(cls, address)
+
+
+class BluetoothClass(int):
+    """Bluetooth Class of Device."""
+
+    class Major(IntFlag):
+        Miscellaneous = 0x00
+        Computer = 0x01
+        Phone = 0x02
+        NetworkAccessPoint = 0x03
+        AudioVideo = 0x04
+        Peripheral = 0x05
+        Imaging = 0x06
+        Wearable = 0x07
+        Toy = 0x08
+        Health = 0x09
+        Uncategorized = 0x1F
+
+    class Service(IntFlag):
+        LimitedDiscoverableMode = 1 << 0
+        LEAudio = 1 << 1
+        ReservedForFutureUse = 1 << 2
+        Positioning = 1 << 3     # Location identification
+        Networking = 1 << 4      # LAN, Ad hoc, etc.
+        Rendering = 1 << 5       # Printing, Speakers, etc.
+        Capturing = 1 << 6       # Scanner, Microphone, etc.
+        ObjectTransfer = 1 << 7  # v-Inbox, v-Folder, etc.
+        Audio = 1 << 8           # Speaker, Microphone, Headset, etc.
+        Telephony = 1 << 9       # Cordless telephony, Modem, etc.
+        Information = 1 << 10    # WEB server, WAP server, etc.
+
+    def __new__(cls, major: int = 0, minor: int = 0, services: int = 0):
+        return super().__new__(cls, (((services & 0x7FF) << 13) |
+                                     ((major & 0x1F) << 8) |
+                                     ((minor & 0x3F) << 2)))
+
+    def __add__(self, other):
+        if not isinstance(other, BluetoothClass.Service):
+            raise TypeError("Can only add BluetoothClass.Service")
+        return BluetoothClass(self.major, self.minor, self.services | other)
+
+    def __sub__(self, other):
+        if not isinstance(other, BluetoothClass.Service):
+            raise TypeError("Can only subtract BluetoothClass.Service")
+        return BluetoothClass(self.major, self.minor, self.services & ~other)
+
+    @property
+    def major(self):
+        return BluetoothClass.Major((self >> 8) & 0x1F)
+
+    @property
+    def minor(self):
+        return (self >> 2) & 0x3F
+
+    @property
+    def services(self):
+        return (self >> 13) & 0x7FF
 
 
 class BluetoothUUID(str):
