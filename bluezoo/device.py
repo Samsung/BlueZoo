@@ -9,26 +9,29 @@ from .utils import NoneTask
 
 
 class Device(DeviceInterface):
+    """Local adapter's view on a peer adapter."""
 
     PAIRING_TIMEOUT = 60
     CONNECTING_TIMEOUT = 60
 
-    def __init__(self, adapter, **kwargs):
+    def __init__(self, peer_adapter, **kwargs):
         super().__init__()
-
         # The adapter that manages this device.
-        self.adapter = adapter
-        # The peer adapter to which this device is added. It is set
-        # when the device is added to a peer adapter.
-        self.peer = None
+        self.peer_adapter = peer_adapter
 
-        self.address = adapter.address
-        self.name_ = adapter.name
-        self.class_ = adapter.class_
+        # The adapter to which this device is added.
+        self.adapter = None
+        # The device representing local adapter on the peer adapter.
+        self.peer_device: Device = None
+
+        self.is_le = False
+        self.is_br_edr = False
+
+        self.address = peer_adapter.address
+        self.name_ = peer_adapter.name
+        self.class_ = peer_adapter.class_
         self.appearance = 0
         self.paired = False
-        # The Device representing our adapter on the peer adapter.
-        self.paired_device = None
         self.pairing_timeout_task = NoneTask()
         self.pairing_task = NoneTask()
         self.bonded = False
@@ -45,9 +48,17 @@ class Device(DeviceInterface):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def __str__(self):
+        return f"device[{self.address}]"
+
+    def setup_adapter(self, adapter):
+        """Set the adapter to which this device is added."""
+        self.peer_device = Device(adapter)
+        self.adapter = adapter
+
     def get_object_path(self):
         return "/".join((
-            self.peer.get_object_path(),
+            self.adapter.get_object_path(),
             f"dev_{self.address.replace(':', '_')}"))
 
     @property
@@ -73,21 +84,21 @@ class Device(DeviceInterface):
 
         async def task():
             # Use the peer's adapter to connect with this device.
-            logging.info(f"Connecting device {self.address} with adapter {self.peer.id}")
+            logging.info(f"Connecting {self} with {self.adapter}")
             # Check if the peer adapter is trusted on the device's adapter.
-            if not self.paired_device.trusted:
+            if not self.peer_device.trusted:
                 await self.adapter.controller.agent.RequestAuthorization(self.get_object_path())
             # Cancel the timeout task.
-            logging.debug(f"Canceling connecting timeout for device {self.address}")
+            logging.debug(f"Canceling connecting timeout for {self}")
             self.connecting_timeout_task.cancel()
             # Mark devices as connected.
-            await self.paired_device.Connected.set_async(True)
+            await self.peer_device.Connected.set_async(True)
             await self.Connected.set_async(True)
 
         async def task_timeout():
-            logging.debug(f"Starting connecting timeout for device {self.address}")
+            logging.debug(f"Starting connecting timeout for {self}")
             await asyncio.sleep(self.CONNECTING_TIMEOUT)
-            logging.info(f"Connecting with device {self.address} timed out")
+            logging.info(f"Connecting with {self} timed out")
             self.connecting_task.cancel()
 
         if not self.paired:
@@ -100,7 +111,7 @@ class Device(DeviceInterface):
     async def disconnect(self, uuid: str = None) -> None:
         self.connecting_task.cancel()
         self.connecting_timeout_task.cancel()
-        logging.info(f"Disconnecting device {self.address}")
+        logging.info(f"Disconnecting {self}")
         await self.connected_device.Connected.set_async(False)
         await self.Connected.set_async(False)
 
@@ -108,26 +119,27 @@ class Device(DeviceInterface):
 
         async def task():
             # Use the peer's adapter to pair with this device.
-            logging.info(f"Pairing device {self.address} with adapter {self.peer.id}")
+            logging.info(f"Pairing {self} with {self.adapter}")
             if self.adapter.controller.agent.capability == "NoInputNoOutput":
                 # There is no user interface to confirm the pairing.
                 pass
             else:
                 raise NotImplementedError
             # Cancel the timeout task.
-            logging.debug(f"Canceling pairing timeout for device {self.address}")
+            logging.debug(f"Canceling pairing timeout for {self}")
             self.pairing_timeout_task.cancel()
-            # Add peer adapter as a paired device to the device's adapter.
-            self.paired_device = Device(self.peer, paired=True, bonded=True)
-            await self.adapter.add_device(self.paired_device)
-            # Mark the device as paired.
+            # Add paired peer device to our adapter.
+            self.peer_device.paired = True
+            self.peer_device.bonded = True
+            await self.peer_adapter.add_device(self.peer_device)
+            # Mark the device as paired and bonded.
             await self.Paired.set_async(True)
             await self.Bonded.set_async(True)
 
         async def task_timeout():
-            logging.debug(f"Starting pairing timeout for device {self.address}")
+            logging.debug(f"Starting pairing timeout for {self}")
             await asyncio.sleep(self.PAIRING_TIMEOUT)
-            logging.info(f"Pairing with device {self.address} timed out")
+            logging.info(f"Pairing with {self} timed out")
             self.pairing_task.cancel()
 
         self.pairing_timeout_task = asyncio.create_task(task_timeout())
@@ -136,6 +148,6 @@ class Device(DeviceInterface):
 
     async def cancel_pairing(self) -> None:
         if not self.pairing_task.done():
-            logging.info(f"Canceling pairing with device {self.address}")
+            logging.info(f"Canceling pairing with {self}")
         self.pairing_task.cancel()
         self.pairing_timeout_task.cancel()

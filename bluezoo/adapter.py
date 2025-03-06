@@ -58,6 +58,9 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.gatt_handle_counter = 0
         self.devices = {}
 
+    def __str__(self):
+        return f"adapter[{self.id}][{self.address}]"
+
     def get_object_path(self):
         return f"/org/bluez/hci{self.id}"
 
@@ -89,13 +92,13 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         await self.UUIDs.set_async(list(uuids))
 
     async def start_discovering(self, client):
-        logging.info(f"Starting discovery on adapter {self.id}")
+        logging.info(f"Starting discovery on {self}")
         self.service.on_client_lost(client, self.stop_discovering)
         self.discovering_task = self.service.create_discovering_task(self.id)
         await self.Discovering.set_async(True)
 
     async def stop_discovering(self):
-        logging.info(f"Stopping discovery on adapter {self.id}")
+        logging.info(f"Stopping discovery on {self}")
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
 
@@ -160,24 +163,24 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.gatt_apps.get((client, path))
 
     async def add_device(self, device: Device):
-        device.peer = self  # Set the device's peer adapter.
+        device.setup_adapter(self)
         path = device.get_object_path()
         if path in self.devices:
-            logging.debug(f"Updating device {device.address} in adapter {self.id}")
+            logging.debug(f"Updating {device} in {self}")
             await self.devices[path].properties_sync(device)
             return
-        logging.info(f"Adding device {device.address} to adapter {self.id}")
+        logging.info(f"Adding {device} to {self}")
         self.service.manager.export_with_manager(path, device)
         self.devices[path] = device
 
     async def del_device(self, device: Device):
-        logging.info(f"Removing device {device.address} from adapter {self.id}")
+        logging.info(f"Removing {device} from {self}")
         self.devices.pop(device.get_object_path())
         self.service.manager.remove_managed_object(device)
 
     def set_discovery_filter(self, properties: dict[str, tuple[str, Any]]) -> None:
         if value := properties.get("UUIDs"):
-            self.scan_filter_uuids = [BluetoothUUID(x[1]) for x in value]
+            self.scan_filter_uuids = [BluetoothUUID(x) for x in value[1]]
         if value := properties.get("Transport"):
             self.scan_filter_transport = value[1]
         if value := properties.get("DuplicateData"):
@@ -197,7 +200,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
                 await self.Discoverable.set_async(False)
             # If timeout is non-zero, set up cancellation task.
             if timeout := self.discoverable_timeout:
-                logging.info(f"Setting adapter {self.id} as discoverable for {timeout} seconds")
+                logging.info(f"Setting {self} as discoverable for {timeout} seconds")
                 self.discoverable_task = asyncio.create_task(task())
 
     def set_pairable(self, enabled: bool):
@@ -210,5 +213,5 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
                 await self.Pairable.set_async(False)
             # If timeout is non-zero, set up cancellation task.
             if timeout := self.pairable_timeout:
-                logging.info(f"Setting adapter {self.id} as pairable for {timeout} seconds")
+                logging.info(f"Setting {self} as pairable for {timeout} seconds")
                 self.pairable_task = asyncio.create_task(task())

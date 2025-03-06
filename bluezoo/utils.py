@@ -84,7 +84,8 @@ class DBusClientMixin:
 
     async def properties_setup_sync_task(self):
         """Synchronize cached properties with the D-Bus service."""
-        for k, v in (await self.properties_get_all_dict()).items():
+        properties = await self.properties_get_all_dict()
+        for k, v in properties.items():
             getattr(self, k).cache(v)
         self._props_watch_task = asyncio.create_task(self._props_watch())
         weakref.finalize(self, self._props_watch_task_cancel)

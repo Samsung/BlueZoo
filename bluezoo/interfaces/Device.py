@@ -157,7 +157,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_property_async("o")
     @dbus_property_async_except_logging
     def Adapter(self) -> str:
-        return self.peer.get_object_path()
+        return self.adapter.get_object_path()
 
     @dbus_property_async("a{sv}")
     @dbus_property_async_except_logging

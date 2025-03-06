@@ -77,15 +77,16 @@ class BluezMockService:
         self.events.remove(f"client:lost:{client}", coroutine)
 
     def add_adapter(self, id: int, address: str):
-        logging.info(f"Adding adapter {id} with address {address}")
         adapter = Adapter(self.controller, id, address)
+        logging.info(f"Adding {adapter}")
         self.manager.export_with_manager(adapter.get_object_path(), adapter)
         self.adapters[id] = adapter
         return adapter
 
     def del_adapter(self, id: int):
-        logging.info(f"Removing adapter {id}")
-        self.manager.remove_managed_object(self.adapters.pop(id))
+        adapter = self.adapters.pop(id)
+        logging.info(f"Removing {adapter}")
+        self.manager.remove_managed_object(adapter)
 
     def create_discovering_task(self, id: int):
         """Create a task that scans for devices on the adapter.
@@ -94,18 +95,19 @@ class BluezMockService:
         adapter which is powered and discoverable, and reports that adapter as
         a new device. The task runs indefinitely until it is cancelled.
         """
-        is_scan_br = self.adapters[id].scan_filter_transport in ("auto", "bredr")
+        is_scan_br_edr = self.adapters[id].scan_filter_transport in ("auto", "bredr")
         is_scan_le = self.adapters[id].scan_filter_transport in ("auto", "le")
 
         async def task():
             while True:
-                logging.info(f"Scanning for devices on adapter {id}")
+                logging.info(f"Scanning for devices on {self.adapters[id]}")
                 for adapter in self.adapters.values():
                     if adapter.id == id:
                         # Do not report our own adapter.
                         continue
                     if not adapter.powered:
                         continue
+
                     # The adapter can be discoverable either if BR/EDR advertising
                     # is explicitly enabled or when the scan filter enables it.
                     is_adapter_discoverable = (
@@ -113,6 +115,7 @@ class BluezMockService:
                         or (adapter.discovering and
                             adapter.scan_filter_discoverable))
                     device = None
+
                     # Check if adapter has enabled LE advertising.
                     if is_scan_le and adapter.advertisement_slots_active > 0:
                         adv = next(iter(adapter.advertisements.values()))
@@ -120,18 +123,22 @@ class BluezMockService:
                         # but if present, it overrides the adapter's property.
                         if not adv.Discoverable.get(is_adapter_discoverable):
                             continue
-                        device = Device(adapter)
+                        device = Device(adapter, is_le=True)
                         device.name_ = adv.LocalName.get(adapter.name)
                         device.appearance = adv.Appearance.get(0)
                         device.uuids = [BluetoothUUID(x) for x in adv.ServiceUUIDs.get([])]
                         device.service_data = {BluetoothUUID(k): v
                                                for k, v in adv.ServiceData.get({}).items()}
-                    # Check if adapter has enabled BR/EDR advertising.
-                    elif is_scan_br and is_adapter_discoverable:
-                        device = Device(adapter)
-                    if device is not None:
-                        # Report discoverable device on our adapter.
+                        # Report discoverable LE device on our adapter.
                         await self.adapters[id].add_device(device)
+
+                    # Check if adapter has enabled BR/EDR advertising.
+                    if is_scan_br_edr and is_adapter_discoverable:
+                        device = Device(adapter, is_br_edr=True)
+                        # Report discoverable BR/EDR device on our adapter.
+                        await self.adapters[id].add_device(device)
+
                 # Wait for the next scan.
                 await asyncio.sleep(self.scan_interval)
+
         return asyncio.create_task(task())
