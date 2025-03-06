@@ -9,7 +9,18 @@ from .service import BluezMockService
 from .utils import BluetoothAddress, setup_default_bus
 
 
-async def main_async():
+async def startup(args):
+
+    bus = setup_default_bus("session" if args.bus_session else "system")
+    await bus.request_name_async("org.bluez", 0)
+    service = BluezMockService(args.scan_interval)
+
+    for i, address in enumerate(args.adapters):
+        adapter = service.add_adapter(i, address)
+        adapter.powered = args.auto_enable
+
+
+def main():
 
     parser = ArgumentParser(description="BlueZ D-Bus Mock Service")
     parser.add_argument(
@@ -32,18 +43,6 @@ async def main_async():
     args = parser.parse_args()
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
 
-    bus = setup_default_bus("session" if args.bus_session else "system")
-    await bus.request_name_async("org.bluez", 0)
-    service = BluezMockService(args.scan_interval)
-
-    for i, address in enumerate(args.adapters):
-        adapter = service.add_adapter(i, address)
-        adapter.powered = args.auto_enable
-
-    while True:
-        # Run forever...
-        await asyncio.sleep(1000)
-
-
-def main():
-    asyncio.run(main_async())
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(startup(args))
+    loop.run_forever()
