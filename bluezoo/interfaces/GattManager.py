@@ -9,7 +9,7 @@ from typing import Any
 import sdbus
 from sdbus.utils import parse_get_managed_objects
 
-from ..utils import DBusClientMixin, dbus_method_async
+from ..utils import DBusClientMixin, dbus_method_async, dbus_method_async_except_logging
 from .GattCharacteristic import GattCharacteristicInterface
 from .GattDescriptor import GattDescriptorInterface
 from .GattService import GattServiceInterface
@@ -90,6 +90,7 @@ class GattManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="oa{sv}",
         input_args_names=("application", "options"))
+    @dbus_method_async_except_logging
     async def RegisterApplication(self, application: str,
                                   options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
@@ -102,6 +103,7 @@ class GattManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="o",
         input_args_names=("application",))
+    @dbus_method_async_except_logging
     async def UnregisterApplication(self, application: str) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to unregister GATT application {application}")

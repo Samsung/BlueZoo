@@ -5,7 +5,8 @@ from typing import Any
 
 import sdbus
 
-from ..utils import dbus_method_async, dbus_property_async
+from ..utils import (dbus_method_async, dbus_method_async_except_logging, dbus_property_async,
+                     dbus_property_async_except_logging)
 
 
 class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
@@ -30,41 +31,49 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         raise NotImplementedError
 
     @dbus_method_async()
+    @dbus_method_async_except_logging
     async def StartDiscovery(self) -> None:
         sender = sdbus.get_current_message().sender
         await self.start_discovering(sender)
 
     @dbus_method_async()
+    @dbus_method_async_except_logging
     async def StopDiscovery(self) -> None:
         await self.stop_discovering()
 
     @dbus_method_async(
         input_signature="a{sv}",
         input_args_names=("properties",))
+    @dbus_method_async_except_logging
     async def SetDiscoveryFilter(self, properties: dict[str, tuple[str, Any]]) -> None:
         self.set_discovery_filter(properties)
 
     @dbus_method_async(
         input_signature="o",
         input_args_names=("device",))
+    @dbus_method_async_except_logging
     async def RemoveDevice(self, device: str) -> None:
         if device not in self.devices:
             return
         await self.del_device(self.devices[device])
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def Address(self) -> str:
         return self.address
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def AddressType(self) -> str:
         return "public"
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def Name(self) -> str:
         return self.name_
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def Alias(self) -> str:
         return self.name
 
@@ -73,10 +82,12 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.name = value
 
     @dbus_property_async("u")
+    @dbus_property_async_except_logging
     def Class(self) -> int:
         return self.class_
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Powered(self) -> bool:
         return self.powered
 
@@ -85,6 +96,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.powered = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Discoverable(self) -> bool:
         return self.discoverable
 
@@ -93,6 +105,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.set_discoverable(value)
 
     @dbus_property_async("u")
+    @dbus_property_async_except_logging
     def DiscoverableTimeout(self) -> int:
         return self.discoverable_timeout
 
@@ -102,6 +115,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.set_discoverable(self.discoverable)
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Pairable(self) -> bool:
         return self.pairable
 
@@ -110,6 +124,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.set_pairable(value)
 
     @dbus_property_async("u")
+    @dbus_property_async_except_logging
     def PairableTimeout(self) -> int:
         return self.pairable_timeout
 
@@ -119,6 +134,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.set_pairable(self.pairable)
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Discovering(self) -> bool:
         return self.discovering
 
@@ -127,6 +143,7 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.discovering = value
 
     @dbus_property_async("as")
+    @dbus_property_async_except_logging
     def UUIDs(self) -> list[str]:
         return self.uuids
 
@@ -135,5 +152,6 @@ class AdapterInterface(sdbus.DbusInterfaceCommonAsync,
         self.uuids = value
 
     @dbus_property_async("as")
+    @dbus_property_async_except_logging
     def Roles(self) -> list[str]:
         return ["central", "peripheral"]

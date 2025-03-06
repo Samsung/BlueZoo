@@ -6,7 +6,8 @@ from typing import Any
 
 import sdbus
 
-from ..utils import DBusClientMixin, dbus_method_async, dbus_property_async
+from ..utils import (DBusClientMixin, dbus_method_async, dbus_method_async_except_logging,
+                     dbus_property_async, dbus_property_async_except_logging)
 from .LEAdvertisement import LEAdvertisementInterface
 
 
@@ -34,6 +35,7 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="oa{sv}",
         input_args_names=("advertisement", "options"))
+    @dbus_method_async_except_logging
     async def RegisterAdvertisement(self, advertisement: str,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
@@ -45,12 +47,14 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="o",
         input_args_names=("advertisement",))
+    @dbus_method_async_except_logging
     async def UnregisterAdvertisement(self, advertisement: str) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to unregister advertisement {advertisement}")
         await self.del_le_advertisement(self.advertisements[sender, advertisement])
 
     @dbus_property_async("y")
+    @dbus_property_async_except_logging
     def ActiveInstances(self) -> int:
         return self.advertisement_slots_active
 
@@ -59,6 +63,7 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
         pass
 
     @dbus_property_async("y")
+    @dbus_property_async_except_logging
     def SupportedInstances(self) -> int:
         return self.advertisement_slots_available
 
@@ -67,14 +72,17 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
         pass
 
     @dbus_property_async("as")
+    @dbus_property_async_except_logging
     def SupportedIncludes(self) -> list[str]:
         return ["tx-power", "appearance", "local-name"]
 
     @dbus_property_async("as")
+    @dbus_property_async_except_logging
     def SupportedSecondaryChannels(self) -> list[str]:
         return ["1M"]
 
     @dbus_property_async("a{sv}")
+    @dbus_property_async_except_logging
     def SupportedCapabilities(self) -> dict[str, tuple[str, Any]]:
         caps = {}
         caps["MaxAdvLen"] = ("y", 31)
@@ -82,5 +90,6 @@ class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
         return caps
 
     @dbus_property_async("as")
+    @dbus_property_async_except_logging
     def SupportedFeatures(self) -> list[str]:
         return []

@@ -6,7 +6,7 @@ from typing import Optional
 
 import sdbus
 
-from ..utils import DBusClientMixin, dbus_method_async
+from ..utils import DBusClientMixin, dbus_method_async, dbus_method_async_except_logging
 from .Agent import AgentInterface
 
 
@@ -36,6 +36,7 @@ class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="os",
         input_args_names=("agent", "capability"))
+    @dbus_method_async_except_logging
     async def RegisterAgent(self, agent: str, capability: str) -> None:
         sender = sdbus.get_current_message().sender
         capability = capability or "KeyboardDisplay"  # Fallback to default capability.
@@ -45,6 +46,7 @@ class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="o",
         input_args_names=("agent",))
+    @dbus_method_async_except_logging
     async def UnregisterAgent(self, agent: str) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to unregister agent {agent}")
@@ -54,6 +56,7 @@ class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_method_async(
         input_signature="o",
         input_args_names=("agent",))
+    @dbus_method_async_except_logging
     async def RequestDefaultAgent(self, agent: str) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to set {agent} as default agent")

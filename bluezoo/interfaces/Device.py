@@ -5,7 +5,8 @@ from typing import Any
 
 import sdbus
 
-from ..utils import dbus_method_async, dbus_property_async
+from ..utils import (dbus_method_async, dbus_method_async_except_logging, dbus_property_async,
+                     dbus_property_async_except_logging)
 
 
 class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
@@ -24,42 +25,51 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         raise NotImplementedError
 
     @dbus_method_async()
+    @dbus_method_async_except_logging
     async def Connect(self) -> None:
         await self.connect()
 
     @dbus_method_async()
+    @dbus_method_async_except_logging
     async def Disconnect(self) -> None:
         await self.disconnect()
 
     @dbus_method_async(
         input_signature="s",
         input_args_names=("uuid",))
+    @dbus_method_async_except_logging
     async def ConnectProfile(self, uuid: str) -> None:
         await self.connect(uuid)
 
     @dbus_method_async(
         input_signature="s",
         input_args_names=("uuid",))
+    @dbus_method_async_except_logging
     async def DisconnectProfile(self, uuid: str) -> None:
         await self.disconnect(uuid)
 
     @dbus_method_async()
+    @dbus_method_async_except_logging
     async def Pair(self) -> None:
         await self.pair()
 
     @dbus_method_async()
+    @dbus_method_async_except_logging
     async def CancelPairing(self) -> None:
         await self.cancel_pairing()
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def Address(self) -> str:
         return self.address
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def AddressType(self) -> str:
         return "public"
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def Name(self) -> str:
         return self.name_
 
@@ -68,6 +78,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.name_ = value
 
     @dbus_property_async("s")
+    @dbus_property_async_except_logging
     def Alias(self) -> str:
         return self.name
 
@@ -76,10 +87,12 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.name = value
 
     @dbus_property_async("u")
+    @dbus_property_async_except_logging
     def Class(self) -> int:
         return self.class_
 
     @dbus_property_async("q")
+    @dbus_property_async_except_logging
     def Appearance(self) -> int:
         return self.appearance
 
@@ -88,6 +101,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.appearance = value
 
     @dbus_property_async("as")
+    @dbus_property_async_except_logging
     def UUIDs(self) -> list[str]:
         return self.uuids
 
@@ -96,6 +110,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.uuids = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Paired(self) -> bool:
         return self.paired
 
@@ -104,6 +119,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.paired = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Bonded(self) -> bool:
         return self.bonded
 
@@ -112,6 +128,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.bond = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Trusted(self) -> bool:
         return self.trusted
 
@@ -120,6 +137,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.trusted = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Blocked(self) -> bool:
         return self.blocked
 
@@ -128,6 +146,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.blocked = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def Connected(self) -> bool:
         return self.connected
 
@@ -136,10 +155,12 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.connected = value
 
     @dbus_property_async("o")
+    @dbus_property_async_except_logging
     def Adapter(self) -> str:
         return self.peer.get_object_path()
 
     @dbus_property_async("a{sv}")
+    @dbus_property_async_except_logging
     def ServiceData(self) -> dict[str, tuple[str, Any]]:
         return self.service_data
 
@@ -148,5 +169,6 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
         self.service_data = value
 
     @dbus_property_async("b")
+    @dbus_property_async_except_logging
     def ServicesResolved(self) -> bool:
         return self.services_resolved

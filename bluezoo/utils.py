@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: MIT
 
 import asyncio
+import logging
 import re
 import weakref
 from enum import IntFlag
-from functools import partial
+from functools import partial, wraps
 
 import sdbus
 from sdbus.dbus_proxy_async_property import (DbusPropertyAsync, DbusPropertyAsyncLocalBind,
@@ -105,6 +106,28 @@ dbus_method_async = partial(sdbus.dbus_method_async,
 # Property decorator that sets the EmitsChange flag by default.
 dbus_property_async = partial(sdbus.dbus_property_async,
                               flags=sdbus.DbusPropertyEmitsChangeFlag)
+
+
+def dbus_method_async_except_logging(func):
+    """Decorator that logs exceptions from D-Bus methods."""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except Exception:
+            logging.exception(f"Error in D-Bus method {func.__name__}")
+    return wrapper
+
+
+def dbus_property_async_except_logging(func):
+    """Decorator that logs exceptions from D-Bus properties."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception:
+            logging.exception(f"Error in D-Bus property {func.__name__}")
+    return wrapper
 
 
 def setup_default_bus(address: str):
