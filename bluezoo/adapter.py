@@ -3,7 +3,6 @@
 
 import asyncio
 import logging
-import random
 from typing import Any, Optional
 
 from .device import Device
@@ -34,7 +33,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
 
         self.id = id
         self.address = address
-        self.name_ = random.choice(TEST_NAMES)
+        self.name_ = TEST_NAMES[id % len(TEST_NAMES)]
         self.class_ = BluetoothClass(BluetoothClass.Major.Computer)
         self.powered = False
         self.discoverable = False
