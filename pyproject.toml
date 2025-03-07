@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "A mock for the BlueZ D-Bus API"
 license = { file = "LICENSE" }
 readme = "README.rst"
+requires-python = ">=3.11"
 dependencies = ["sdbus"]
 
 [project.scripts]

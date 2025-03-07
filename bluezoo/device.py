@@ -32,13 +32,11 @@ class Device(DeviceInterface):
         self.class_ = peer_adapter.class_
         self.appearance = 0
         self.paired = False
-        self.pairing_timeout_task = NoneTask()
         self.pairing_task = NoneTask()
         self.bonded = False
         self.trusted = False
         self.blocked = False
         self.connected = False
-        self.connecting_timeout_task = NoneTask()
         self.connecting_task = NoneTask()
         self.services_resolved = False
         self.service_data = {}
@@ -88,31 +86,24 @@ class Device(DeviceInterface):
             # Check if the peer adapter is trusted on the device's adapter.
             if not self.peer_device.trusted:
                 await self.adapter.controller.agent.RequestAuthorization(self.get_object_path())
-            # Cancel the timeout task.
-            logging.debug(f"Canceling connecting timeout for {self}")
-            self.connecting_timeout_task.cancel()
             # Mark devices as connected.
             await self.peer_device.Connected.set_async(True)
             await self.Connected.set_async(True)
 
-        async def task_timeout():
-            logging.debug(f"Starting connecting timeout for {self}")
-            await asyncio.sleep(self.CONNECTING_TIMEOUT)
-            logging.info(f"Connecting with {self} timed out")
-            self.connecting_task.cancel()
-
         if not self.paired:
             await self.pair()
 
-        self.connecting_timeout_task = asyncio.create_task(task_timeout())
-        self.connecting_task = asyncio.create_task(task())
-        await self.connecting_task
+        try:
+            self.connecting_task = asyncio.create_task(task())
+            async with asyncio.timeout(self.CONNECTING_TIMEOUT):
+                await self.connecting_task
+        except asyncio.TimeoutError:
+            logging.info(f"Connecting with {self} timed out")
 
     async def disconnect(self, uuid: str = None) -> None:
         self.connecting_task.cancel()
-        self.connecting_timeout_task.cancel()
         logging.info(f"Disconnecting {self}")
-        await self.connected_device.Connected.set_async(False)
+        await self.peer_device.Connected.set_async(False)
         await self.Connected.set_async(False)
 
     async def pair(self) -> None:
@@ -125,9 +116,6 @@ class Device(DeviceInterface):
                 pass
             else:
                 raise NotImplementedError
-            # Cancel the timeout task.
-            logging.debug(f"Canceling pairing timeout for {self}")
-            self.pairing_timeout_task.cancel()
             # Add paired peer device to our adapter.
             self.peer_device.paired = True
             self.peer_device.bonded = True
@@ -136,18 +124,14 @@ class Device(DeviceInterface):
             await self.Paired.set_async(True)
             await self.Bonded.set_async(True)
 
-        async def task_timeout():
-            logging.debug(f"Starting pairing timeout for {self}")
-            await asyncio.sleep(self.PAIRING_TIMEOUT)
+        try:
+            self.pairing_task = asyncio.create_task(task())
+            async with asyncio.timeout(self.PAIRING_TIMEOUT):
+                await self.pairing_task
+        except asyncio.TimeoutError:
             logging.info(f"Pairing with {self} timed out")
-            self.pairing_task.cancel()
-
-        self.pairing_timeout_task = asyncio.create_task(task_timeout())
-        self.pairing_task = asyncio.create_task(task())
-        await self.pairing_task
 
     async def cancel_pairing(self) -> None:
         if not self.pairing_task.done():
             logging.info(f"Canceling pairing with {self}")
         self.pairing_task.cancel()
-        self.pairing_timeout_task.cancel()
