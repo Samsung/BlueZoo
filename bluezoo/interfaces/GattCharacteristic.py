@@ -82,9 +82,9 @@ class GattCharacteristicInterface(sdbus.DbusInterfaceCommonAsync,
         raise NotImplementedError
 
     @dbus_property_async("q")
-    def Handle(self) -> int:
+    def MTU(self) -> int:
         raise NotImplementedError
 
     @dbus_property_async("q")
-    def MTU(self) -> int:
+    def Handle(self) -> int:
         raise NotImplementedError

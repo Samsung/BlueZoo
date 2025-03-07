@@ -5,8 +5,7 @@ import asyncio
 import logging
 from typing import Optional
 
-from .interfaces import AgentManagerInterface
-from .interfaces.AgentManager import Agent
+from .interfaces.AgentManager import Agent, AgentManagerInterface
 
 
 class Controller(AgentManagerInterface):

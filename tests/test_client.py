@@ -173,7 +173,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("info 00:00:00:01:00:00")
             await proc.expect("Name: BLE-Device")
             await proc.expect("Appearance: 0x00a0")
-            await proc.expect("ServiceData Key: 0xFFF1")
+            await proc.expect("ServiceData.0000fff1-0000-1000-8000-00805f9b34fb:")
 
             # Update the advertisement data and verify that the changes
             # are visible to the scanner.
@@ -281,6 +281,38 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("info 00:00:00:02:00:00")
             await proc.expect("Device 00:00:00:02:00:00 (public)")
             await proc.expect("Connected: yes")
+
+    async def test_connect_gatt(self):
+        async with await client() as proc:
+
+            await proc.write("select 00:00:00:01:00:00")
+            # Setup GATT primary service.
+            await proc.write("gatt.register-service 0xF100")
+            await proc.expect("Primary (yes/no):", eol=False)
+            await proc.write("yes")
+            # Setup GATT characteristic.
+            await proc.write("gatt.register-characteristic 0xF110 read,write")
+            await proc.expect("Enter value:", eol=False)
+            await proc.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
+            # Register GATT application.
+            await proc.write("gatt.register-application")
+            # Verify that new service was added to the adapter.
+            await proc.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
+            # Advertising GATT service on first adapter.
+            await proc.write("advertise.uuids 0xF100")
+            await proc.write("advertise.discoverable on")
+            await proc.write("advertise peripheral")
+            await proc.expect("Advertising object registered")
+
+            # Scan for the GATT service on second adapter.
+            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("scan le")
+            await proc.expect("Discovery started")
+            await proc.expect("Device 00:00:00:01:00:00")
+
+            # Connect to the GATT service.
+            await proc.write("connect 00:00:00:01:00:00")
+            await proc.expect("Connection successful")
 
 
 if __name__ == '__main__':

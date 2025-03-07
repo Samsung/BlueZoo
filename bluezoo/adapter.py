@@ -6,8 +6,10 @@ import logging
 from typing import Any, Optional
 
 from .device import Device
-from .interfaces import AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterface
-from .interfaces.GattManager import GattApplication, GattService
+from .gatt import GattApplication, GattServiceClient
+from .interfaces.Adapter import AdapterInterface
+from .interfaces.GattManager import GattManagerInterface
+from .interfaces.LEAdvertisingManager import LEAdvertisingManagerInterface
 from .utils import BluetoothClass, BluetoothUUID, NoneTask
 
 # List of predefined device names.
@@ -86,7 +88,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         # Gather all UUIDs from GATT applications.
         for app in self.gatt_apps.values():
             for obj in app.objects.values():
-                if isinstance(obj, GattService) and obj.Primary.get():
+                if isinstance(obj, GattServiceClient) and obj.Primary.get():
                     uuids.add(BluetoothUUID(obj.UUID.get()))
 
         await self.UUIDs.set_async(list(uuids))

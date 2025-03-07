@@ -172,3 +172,7 @@ class DeviceInterface(sdbus.DbusInterfaceCommonAsync,
     @dbus_property_async_except_logging
     def ServicesResolved(self) -> bool:
         return self.services_resolved
+
+    @ServicesResolved.setter_private
+    def ServicesResolved_setter(self, value: bool):
+        self.services_resolved = value

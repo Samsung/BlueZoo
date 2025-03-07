@@ -4,7 +4,9 @@
 import asyncio
 import logging
 
-from .interfaces import DeviceInterface
+from .gatt import (GattCharacteristicClient, GattCharacteristicClientLink, GattDescriptorClient,
+                   GattDescriptorClientLink, GattServiceClient, GattServiceClientLink)
+from .interfaces.Device import DeviceInterface
 from .utils import NoneTask
 
 
@@ -38,6 +40,7 @@ class Device(DeviceInterface):
         self.blocked = False
         self.connected = False
         self.connecting_task = NoneTask()
+        self.services = {}
         self.services_resolved = False
         self.service_data = {}
         self.uuids = []
@@ -78,20 +81,50 @@ class Device(DeviceInterface):
         if self.service_data != device.service_data:
             await self.ServiceData.set_async(device.service)
 
+    def connect_check_pairing_required(self, uuid):
+        return self.is_br_edr and not self.paired
+
+    def connect_check_authorization_required(self, uuid):
+        # The connection is requested from our side, so we need to check if
+        # our adapter is trusted on the peer adapter.
+        return self.is_br_edr and not self.peer_device.trusted
+
     async def connect(self, uuid: str = None) -> None:
 
         async def task():
             # Use the peer's adapter to connect with this device.
             logging.info(f"Connecting {self} with {self.adapter}")
-            # Check if the peer adapter is trusted on the device's adapter.
-            if not self.peer_device.trusted:
-                await self.adapter.controller.agent.RequestAuthorization(self.get_object_path())
+
+            if self.connect_check_authorization_required(uuid):
+                await self.peer_adapter.controller.agent.RequestAuthorization(self.get_object_path())
+
             # Mark devices as connected.
             await self.peer_device.Connected.set_async(True)
             await self.Connected.set_async(True)
 
-        if not self.paired:
+            # Resolve LE services on the device.
+            for app in self.peer_adapter.gatt_apps.values():
+                links = {}
+                for obj_path, obj in sorted(app.objects.items(), key=lambda x: x[0]):
+                    if isinstance(obj, GattServiceClient):
+                        link = GattServiceClientLink(obj, self)
+                    if isinstance(obj, GattCharacteristicClient):
+                        link = GattCharacteristicClientLink(obj, links[obj.Service.get()])
+                    if isinstance(obj, GattDescriptorClient):
+                        link = GattDescriptorClientLink(obj, links[obj.Characteristic.get()])
+                    # Export the link with the manager.
+                    self.peer_adapter.controller.service.manager.export_with_manager(
+                        link.get_object_path(), link)
+                    self.services[link.get_object_path()] = link
+                    links[obj_path] = link
+
+            # Devices are linked, so we can mark services as resolved.
+            await self.peer_device.ServicesResolved.set_async(True)
+            await self.ServicesResolved.set_async(True)
+
+        if self.connect_check_pairing_required(uuid):
             await self.pair()
+        await self.peer_adapter.add_device(self.peer_device)
 
         try:
             self.connecting_task = asyncio.create_task(task())
