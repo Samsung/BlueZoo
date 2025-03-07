@@ -55,6 +55,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
 
         self.advertisements = {}
         self.gatt_apps = {}
+        self.gatt_handles = set()
         self.gatt_handle_counter = 0
         self.devices = {}
 
@@ -130,10 +131,18 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.gatt_apps[app.get_destination()] = app
 
         for obj in app.objects.values():
+            # Assign handle values to objects that don't have one.
             if obj.Handle.get() == 0:
                 self.gatt_handle_counter += 1
-                # Assign handle values to objects that don't have one.
+                # Let the server know the new handle value.
                 await obj.Handle.set_async(self.gatt_handle_counter)
+            elif obj.Handle.get() is None:
+                self.gatt_handle_counter += 1
+                # If server does not have the Handle property, update local cache only.
+                obj.Handle.cache(self.gatt_handle_counter)
+            elif obj.Handle.get() in self.gatt_handles:
+                raise ValueError(f"Handle {obj.Handle.get()} already exists")
+            self.gatt_handles.add(obj.Handle.get())
 
         await self.update_uuids()
 

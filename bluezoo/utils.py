@@ -50,6 +50,10 @@ class DBusPropertyAsyncProxyBindWithCache(DbusPropertyAsyncProxyBind):
         property_name = self.dbus_property.property_name
         return local_object._cache.get(property_name, default)
 
+    async def set_async(self, value):
+        await super().set_async(value)
+        self.cache(value)
+
 
 def DbusPropertyAsync__get__(self, obj, obj_class):
     if obj is None:
