@@ -73,7 +73,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start mock with two adapters
         self._mock = await asyncio.create_subprocess_exec(
-            "bluetoothd-mock", "--verbose",
+            "bluezoo", "--verbose",
             "--auto-enable",
             "--scan-interval=1",
             "--adapter=00:00:00:01:00:00",

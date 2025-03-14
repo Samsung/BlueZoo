@@ -15,7 +15,7 @@ async def startup(args):
     await bus.request_name_async("org.bluez", 0)
     service = BluezMockService(args.scan_interval)
 
-    for i, address in enumerate(args.adapters):
+    for i, address in enumerate(args.adapters or []):
         adapter = service.add_adapter(i, address)
         adapter.powered = args.auto_enable
 
@@ -24,8 +24,11 @@ def main():
 
     parser = ArgumentParser(description="BlueZ D-Bus Mock Service")
     parser.add_argument(
-        "-v", "--verbose", action="store_true",
-        help="enable verbose output")
+        "-v", "--verbose", action="count", default=0,
+        help="increase verbosity level (can be used multiple times)")
+    parser.add_argument(
+        "-q", "--quiet", action="count", default=0,
+        help="decrease verbosity level (can be used multiple times)")
     parser.add_argument(
         "--bus-session", action="store_true",
         help="use the session bus; default is the system bus")
@@ -41,7 +44,8 @@ def main():
         help="adapter to use")
 
     args = parser.parse_args()
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
+    verbosity = logging.INFO + 10 * (args.quiet - args.verbose)
+    logging.basicConfig(level=max(logging.DEBUG, min(logging.CRITICAL, verbosity)))
 
     loop = asyncio.new_event_loop()
     loop.run_until_complete(startup(args))
