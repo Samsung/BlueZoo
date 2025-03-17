@@ -1,5 +1,5 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
 import logging
@@ -58,6 +58,8 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
                 "device": ("o", self.service.device.get_object_path()),
                 "mtu": ("q", self.mtu),
                 "link": ("s", "LE")})
+            # Duplicate the file descriptor before opening the socket to
+            # avoid closing the file descriptor by the D-Bus library.
             self.f_write = open(os.dup(fd), "wb", buffering=0)
         self.f_write.write(value)
 
