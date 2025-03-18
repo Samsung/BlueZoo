@@ -119,6 +119,8 @@ def dbus_method_async_except_logging(func):
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
+        except sdbus.SdBusBaseError:
+            raise  # Propagate D-Bus errors.
         except Exception:
             logging.exception(f"Error in D-Bus method {func.__name__}")
     return wrapper
@@ -130,6 +132,8 @@ def dbus_property_async_except_logging(func):
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except sdbus.SdBusBaseError:
+            raise  # Propagate D-Bus errors.
         except Exception:
             logging.exception(f"Error in D-Bus property {func.__name__}")
     return wrapper
