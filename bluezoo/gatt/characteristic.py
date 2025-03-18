@@ -28,12 +28,22 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         self.client = client
         self.service = service
 
+        self.device_path = self.service.device.get_object_path()
+        self.mtu = self.client.MTU.get(512)
+        self.link = "LE"
+
         self.f_read = None
         self.f_write = None
-        self.mtu = self.client.MTU.get(512)
 
     def __str__(self):
         return self.client.get_object_path()
+
+    def __prepare_options(self, options: dict):
+        options.update({
+            "device": ("o", self.device_path),
+            "mtu": ("q", self.mtu),
+            "link": ("s", self.link)})
+        return options
 
     def get_object_path(self):
         handle = hex(self.client.Handle.get())[2:].zfill(4)
@@ -44,7 +54,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     async def ReadValue(self, options: dict[str, tuple[str, Any]]) -> bytes:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to read value of {self}")
-        return await self.client.ReadValue(options)
+        return await self.client.ReadValue(self.__prepare_options(options))
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
@@ -52,16 +62,16 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to write value of {self}")
         if self.client.WriteAcquired.get() is None:
-            await self.client.WriteValue(value, options)
+            await self.client.WriteValue(value, self.__prepare_options(options))
         elif self.client.WriteAcquired.get() is False:
-            fd, self.mtu = await self.client.AcquireWrite({
-                "device": ("o", self.service.device.get_object_path()),
-                "mtu": ("q", self.mtu),
-                "link": ("s", "LE")})
+            fd, self.mtu = await self.client.AcquireWrite(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
             self.f_write = open(os.dup(fd), "wb", buffering=0)
-        self.f_write.write(value)
+            self.f_write.write(value)
+        else:
+            # Write to the previously acquired file descriptor.
+            self.f_write.write(value)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
@@ -85,10 +95,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         if self.client.NotifyAcquired.get() is None:
             await self.client.StartNotify()
         elif self.client.NotifyAcquired.get() is False:
-            fd, self.mtu = await self.client.AcquireNotify({
-                "device": ("o", self.service.device.get_object_path()),
-                "mtu": ("q", self.mtu),
-                "link": ("s", "LE")})
+            fd, self.mtu = await self.client.AcquireNotify(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
             self.f_read = open(os.dup(fd), "rb", buffering=0)

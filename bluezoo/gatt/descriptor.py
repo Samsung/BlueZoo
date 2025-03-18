@@ -29,6 +29,13 @@ class GattDescriptorClientLink(GattDescriptorInterface):
     def __str__(self):
         return self.get_object_path()
 
+    def __prepare_options(self, options: dict):
+        options.update({
+            "device": ("o", self.characteristic.device_path),
+            "mtu": ("q", self.characteristic.mtu),
+            "link": ("s", self.characteristic.link)})
+        return options
+
     def get_object_path(self):
         handle = hex(self.client.Handle.get())[2:].zfill(4)
         return f"{self.characteristic.get_object_path()}/desc{handle}"
@@ -38,14 +45,14 @@ class GattDescriptorClientLink(GattDescriptorInterface):
     async def ReadValue(self, options: dict[str, tuple[str, Any]]) -> bytes:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to read value of {self}")
-        return self.client.ReadValue(options)
+        return await self.client.ReadValue(self.__prepare_options(options))
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to write value of {self}")
-        return self.client.WriteValue(value, options)
+        await self.client.WriteValue(value, self.__prepare_options(options))
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging

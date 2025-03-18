@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
+import contextlib
 import os
 import unittest
 
@@ -15,8 +16,10 @@ class AsyncProcessContext:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.proc.terminate()
-        await self.proc.wait()
+        with contextlib.suppress(ProcessLookupError):
+            self.proc.terminate()
+        if x := await self.proc.wait():
+            raise RuntimeError(f"Process exited with status {x}")
 
     async def __read(self, readline=False):
         if readline:
@@ -34,7 +37,7 @@ class AsyncProcessContext:
                 raise TimeoutError(f"Timeout waiting for '{data}' in output")
             try:
                 line = await asyncio.wait_for(self.__read(eol), timeout=diff)
-                print(line.decode(), end="")
+                os.sys.stdout.buffer.write(line)
                 if not line:  # EOF
                     break
                 output += line
@@ -42,7 +45,7 @@ class AsyncProcessContext:
                     break
             except asyncio.TimeoutError:
                 continue
-        return output.decode()
+        return output.decode(errors='ignore')
 
     async def write(self, data: str, end="\n"):
         self.proc.stdin.write((data + end).encode())
@@ -88,7 +91,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         async def forward():
             while True:
                 line = await self._mock.stderr.readline()
-                print(line.decode(), end="", file=os.sys.stderr)
+                os.sys.stderr.buffer.write(line)
         self._mock_forwarder = asyncio.create_task(forward())
 
     async def asyncTearDown(self):
@@ -290,10 +293,18 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("gatt.register-service 0xF100")
             await proc.expect("Primary (yes/no):", eol=False)
             await proc.write("yes")
-            # Setup GATT characteristic.
+            # Setup GATT characteristic with read/write permissions.
             await proc.write("gatt.register-characteristic 0xF110 read,write")
             await proc.expect("Enter value:", eol=False)
             await proc.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
+            # Setup GATT characteristic with read/notify permissions.
+            await proc.write("gatt.register-characteristic 0xF120 read,notify")
+            await proc.expect("Enter value:", eol=False)
+            await proc.write("0x52 0x45 0x41 0x44")
+            # Setup GATT descriptor with read/write permissions.
+            await proc.write("gatt.register-descriptor 0xF121 read")
+            await proc.expect("Enter value:", eol=False)
+            await proc.write("0x44 0x45 0x53 0x43")
             # Register GATT application.
             await proc.write("gatt.register-application")
             # Verify that new service was added to the adapter.
@@ -313,6 +324,35 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             # Connect to the GATT service.
             await proc.write("connect 00:00:00:01:00:00")
             await proc.expect("Connection successful")
+
+            # Verify that we can read 0xF110 characteristic.
+            await proc.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
+            await proc.write("gatt.read")
+            await proc.expect("CHARACTER")
+            # Verify error when reading at invalid offset.
+            await proc.write("gatt.read 32")
+            await proc.expect("Failed to read: org.bluez.Error.InvalidOffset")
+            # Verify that we can write at specified offset.
+            await proc.write("gatt.write '0x61 0x63 0x74' 4")
+            await proc.expect("act")
+            # Verify that the value was correctly written.
+            await proc.write("gatt.read")
+            await proc.expect("CHARact")
+
+            # Verify notifications from 0xF120 characteristic.
+            await proc.write("gatt.select-attribute 0000f120-0000-1000-8000-00805f9b34fb")
+            await proc.write("gatt.notify on")
+            await proc.expect("Notify started")
+
+            # Verify that we can read 0xF121 descriptor.
+            await proc.write("gatt.select-attribute 0000f121-0000-1000-8000-00805f9b34fb")
+            await proc.write("gatt.read")
+            await proc.expect("DESC")
+            # Verify that we can write at specified offset.
+            await proc.write("gatt.write '0x4f 0x4e 0x45' 1")
+            # Verify that the value was correctly written.
+            await proc.write("gatt.read")
+            await proc.expect("DONE")
 
 
 if __name__ == '__main__':

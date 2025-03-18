@@ -9,7 +9,7 @@ from .service import GattServiceClient, GattServiceClientLink
 __all__ = [
     "GattApplication",
     "GattCharacteristicClient",
-	"GattCharacteristicClientLink",
+    "GattCharacteristicClientLink",
     "GattDescriptorClient",
     "GattDescriptorClientLink",
     "GattServiceClient",
