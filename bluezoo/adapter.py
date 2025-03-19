@@ -3,13 +3,12 @@
 
 import asyncio
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from .adv import LEAdvertisingManager
 from .device import Device
-from .gatt import GattApplication, GattServiceClient
+from .gatt import GattManager
 from .interfaces.Adapter import AdapterInterface
-from .interfaces.GattManager import GattManagerInterface
 from .utils import BluetoothClass, BluetoothUUID, NoneTask
 
 # List of predefined device names.
@@ -23,7 +22,7 @@ TEST_NAMES = (
 )
 
 
-class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManager):
+class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
 
     def __init__(self, controller, id: int, address: str):
         self.controller = controller
@@ -51,9 +50,6 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManager):
         self.scan_filter_discoverable = False
         self.scan_filter_pattern = None
 
-        self.gatt_apps = {}
-        self.gatt_handles = set()
-        self.gatt_handle_counter = 0
         self.devices = {}
 
     def __str__(self):
@@ -72,13 +68,7 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManager):
 
     async def update_uuids(self):
         uuids = set()
-
-        # Gather all UUIDs from GATT applications.
-        for app in self.gatt_apps.values():
-            for obj in app.objects.values():
-                if isinstance(obj, GattServiceClient) and obj.Primary.get():
-                    uuids.add(BluetoothUUID(obj.UUID.get()))
-
+        uuids.update(self.get_gatt_registered_primary_services())
         await self.UUIDs.set_async(list(uuids))
 
     async def start_discovering(self, client):
@@ -91,52 +81,6 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManager):
         logging.info(f"Stopping discovery on {self}")
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
-
-    async def add_gatt_application(self, app: GattApplication) -> None:
-        logging.info(f"Adding GATT application {app.get_object_path()}")
-
-        self.gatt_apps[app.get_destination()] = app
-
-        for obj in app.objects.values():
-            # Assign handle values to objects that don't have one.
-            if obj.Handle.get() == 0:
-                self.gatt_handle_counter += 1
-                # Let the server know the new handle value.
-                await obj.Handle.set_async(self.gatt_handle_counter)
-            elif obj.Handle.get() is None:
-                self.gatt_handle_counter += 1
-                # If server does not have the Handle property, update local cache only.
-                obj.Handle.cache(self.gatt_handle_counter)
-            elif obj.Handle.get() in self.gatt_handles:
-                raise ValueError(f"Handle {obj.Handle.get()} already exists")
-            self.gatt_handles.add(obj.Handle.get())
-
-        await self.update_uuids()
-
-        async def on_client_lost():
-            await self.del_gatt_application(app)
-        self.service.on_client_lost(app.get_client(), on_client_lost)
-        app.on_client_lost = on_client_lost
-
-        async def wait_for_object_removed():
-            await app.object_removed.wait()
-            path = app.get_object_path()
-            logging.debug(f"Object removed, removing GATT application {path}")
-            await self.del_gatt_application(app)
-
-        app.client_lost_task = asyncio.create_task(asyncio.wait(
-            [wait_for_object_removed()],
-            return_when=asyncio.FIRST_COMPLETED))
-
-    async def del_gatt_application(self, app: GattApplication) -> None:
-        logging.info(f"Removing GATT application {app.get_object_path()}")
-        app.client_lost_task.cancel()
-        self.service.on_client_lost_remove(app.get_client(), app.on_client_lost)
-        self.gatt_apps.pop(app.get_destination())
-        await self.update_uuids()
-
-    def get_gatt_application(self, client, path) -> Optional[GattApplication]:
-        self.gatt_apps.get((client, path))
 
     async def add_device(self, device: Device):
         device.setup_adapter(self)
