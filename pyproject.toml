@@ -16,9 +16,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Mocking",
 ]
-dependencies = [
-    "sdbus>=0.13.0",
-]
+dependencies = ["pyparsing>=3.0.0", "sdbus>=0.13.0"]
 
 [project.scripts]
 bluezoo = "bluezoo:main"
