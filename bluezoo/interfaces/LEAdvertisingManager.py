@@ -1,95 +1,49 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-import logging
 from typing import Any
 
 import sdbus
 
-from ..utils import (DBusClientMixin, dbus_method_async, dbus_method_async_except_logging,
-                     dbus_property_async, dbus_property_async_except_logging)
-from .LEAdvertisement import LEAdvertisementInterface
-
-
-class LEAdvertisement(DBusClientMixin, LEAdvertisementInterface):
-    """D-Bus client for the LEAdvertisement1 interface."""
-
-    def __init__(self, service, path, options):
-        super().__init__(service, path)
-        self.options = options
+from ..utils import dbus_method_async, dbus_property_async
 
 
 class LEAdvertisingManagerInterface(sdbus.DbusInterfaceCommonAsync,
                                     interface_name="org.bluez.LEAdvertisingManager1"):
 
-    advertisements = None
-    advertisement_slots_active: int = None
-    advertisement_slots_available: int = None
-
-    async def add_le_advertisement(self, advertisement: LEAdvertisement) -> None:
-        raise NotImplementedError
-
-    async def del_le_advertisement(self, advertisement: LEAdvertisement) -> None:
-        raise NotImplementedError
-
     @dbus_method_async(
         input_signature="oa{sv}",
         input_args_names=("advertisement", "options"))
-    @dbus_method_async_except_logging
     async def RegisterAdvertisement(self, advertisement: str,
                                     options: dict[str, tuple[str, Any]]) -> None:
-        sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to register advertisement {advertisement}")
-        advertisement = LEAdvertisement(sender, advertisement, options)
-        await advertisement.properties_setup_sync_task()
-        await self.add_le_advertisement(advertisement)
+        raise NotImplementedError
 
     @dbus_method_async(
         input_signature="o",
         input_args_names=("advertisement",))
-    @dbus_method_async_except_logging
     async def UnregisterAdvertisement(self, advertisement: str) -> None:
-        sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to unregister advertisement {advertisement}")
-        await self.del_le_advertisement(self.advertisements[sender, advertisement])
+        raise NotImplementedError
 
     @dbus_property_async("y")
-    @dbus_property_async_except_logging
     def ActiveInstances(self) -> int:
-        return self.advertisement_slots_active
-
-    @ActiveInstances.setter_private
-    def ActiveInstances_setter(self, value: int) -> None:
-        pass
+        raise NotImplementedError
 
     @dbus_property_async("y")
-    @dbus_property_async_except_logging
     def SupportedInstances(self) -> int:
-        return self.advertisement_slots_available
-
-    @SupportedInstances.setter_private
-    def SupportedInstances_setter(self, value: int) -> None:
-        pass
+        raise NotImplementedError
 
     @dbus_property_async("as")
-    @dbus_property_async_except_logging
     def SupportedIncludes(self) -> list[str]:
-        return ["tx-power", "appearance", "local-name"]
+        raise NotImplementedError
 
     @dbus_property_async("as")
-    @dbus_property_async_except_logging
     def SupportedSecondaryChannels(self) -> list[str]:
-        return ["1M"]
+        raise NotImplementedError
 
     @dbus_property_async("a{sv}")
-    @dbus_property_async_except_logging
     def SupportedCapabilities(self) -> dict[str, tuple[str, Any]]:
-        caps = {}
-        caps["MaxAdvLen"] = ("y", 31)
-        caps["MaxScanRespLen"] = ("y", 31)
-        return caps
+        raise NotImplementedError
 
     @dbus_property_async("as")
-    @dbus_property_async_except_logging
     def SupportedFeatures(self) -> list[str]:
-        return []
+        raise NotImplementedError

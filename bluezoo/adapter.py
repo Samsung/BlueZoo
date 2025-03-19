@@ -5,11 +5,11 @@ import asyncio
 import logging
 from typing import Any, Optional
 
+from .adv import LEAdvertisingManager
 from .device import Device
 from .gatt import GattApplication, GattServiceClient
 from .interfaces.Adapter import AdapterInterface
 from .interfaces.GattManager import GattManagerInterface
-from .interfaces.LEAdvertisingManager import LEAdvertisingManagerInterface
 from .utils import BluetoothClass, BluetoothUUID, NoneTask
 
 # List of predefined device names.
@@ -23,10 +23,7 @@ TEST_NAMES = (
 )
 
 
-class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterface):
-
-    # Number of supported advertisement instances per adapter.
-    SUPPORTED_ADVERTISEMENT_INSTANCES = 15
+class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManager):
 
     def __init__(self, controller, id: int, address: str):
         self.controller = controller
@@ -54,7 +51,6 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         self.scan_filter_discoverable = False
         self.scan_filter_pattern = None
 
-        self.advertisements = {}
         self.gatt_apps = {}
         self.gatt_handles = set()
         self.gatt_handle_counter = 0
@@ -73,14 +69,6 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
     @name.setter
     def name_setter(self, value):
         self.name__ = value
-
-    @property
-    def advertisement_slots_active(self):
-        return len(self.advertisements)
-
-    @property
-    def advertisement_slots_available(self):
-        return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
 
     async def update_uuids(self):
         uuids = set()
@@ -103,28 +91,6 @@ class Adapter(AdapterInterface, GattManagerInterface, LEAdvertisingManagerInterf
         logging.info(f"Stopping discovery on {self}")
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
-
-    async def add_le_advertisement(self, adv):
-        logging.info(f"Adding LE advertisement {adv.get_object_path()}")
-
-        self.advertisements[adv.get_destination()] = adv
-
-        async def on_client_lost():
-            await self.del_le_advertisement(adv)
-        self.service.on_client_lost(adv.get_client(), on_client_lost)
-        adv.on_client_lost = on_client_lost
-
-        await self.ActiveInstances.set_async(self.advertisement_slots_active)
-        await self.SupportedInstances.set_async(self.advertisement_slots_available)
-
-    async def del_le_advertisement(self, adv):
-        logging.info(f"Removing LE advertisement {adv.get_object_path()}")
-
-        self.service.on_client_lost_remove(adv.get_client(), adv.on_client_lost)
-        self.advertisements.pop(adv.get_destination())
-
-        await self.ActiveInstances.set_async(self.advertisement_slots_active)
-        await self.SupportedInstances.set_async(self.advertisement_slots_available)
 
     async def add_gatt_application(self, app: GattApplication) -> None:
         logging.info(f"Adding GATT application {app.get_object_path()}")
