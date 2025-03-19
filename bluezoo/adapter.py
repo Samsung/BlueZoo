@@ -94,6 +94,7 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
         self.devices[path] = device
 
     async def del_device(self, device: Device):
+        await device.disconnect()
         logging.info(f"Removing {device} from {self}")
         self.devices.pop(device.get_object_path())
         self.service.manager.remove_managed_object(device)

@@ -38,6 +38,7 @@ class AsyncProcessContext:
             try:
                 line = await asyncio.wait_for(self.__read(eol), timeout=diff)
                 os.sys.stdout.buffer.write(line)
+                os.sys.stdout.flush()
                 if not line:  # EOF
                     break
                 output += line
@@ -52,13 +53,20 @@ class AsyncProcessContext:
         await self.proc.stdin.drain()
 
 
-async def client(*args):
+async def client(*args, no_agent=False):
     """Start bluetoothctl in a subprocess and return a context manager."""
-    proc = await asyncio.create_subprocess_exec(
+    proc = AsyncProcessContext(await asyncio.create_subprocess_exec(
         'bluetoothctl', *args,
         stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE)
-    return AsyncProcessContext(proc)
+        stdout=asyncio.subprocess.PIPE))
+    if no_agent:
+        # By default BlueZ client registers an agent on startup. However, we
+        # do not want to use this agent because it requires user interaction.
+        # Before we can unregister it, we need to wait for it to appear.
+        await proc.expect("Agent registered")
+        await proc.write("agent off")
+        await proc.expect("Agent unregistered")
+    return proc
 
 
 class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
@@ -76,16 +84,17 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start mock with two adapters
         self._mock = await asyncio.create_subprocess_exec(
-            "bluezoo", "--verbose",
+            "bluezoo",
+            "--verbose",
             "--auto-enable",
             "--scan-interval=1",
-            "--adapter=00:00:00:01:00:00",
-            "--adapter=00:00:00:02:00:00",
+            "--adapter=00:00:00:11:11:11",
+            "--adapter=00:00:00:22:22:22",
             stderr=asyncio.subprocess.PIPE)
 
-        # Wait for log message about adding adapter 00:00:00:01:00:00
+        # Wait for log message about adding adapter 00:00:00:11:11:11
         await self._mock.stderr.readline()
-        # Wait for log message about adding adapter 00:00:00:02:00:00
+        # Wait for log message about adding adapter 00:00:00:22:22:22
         await self._mock.stderr.readline()
 
         async def forward():
@@ -102,21 +111,16 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         await self._bus.wait()
 
     async def test_agent(self):
-        async with await client() as proc:
-            # BlueZ client always registers an agent on startup.
-            await proc.expect("Agent registered")
+        async with await client(no_agent=True) as proc:
 
-            # We need to unregister the agent to add a new one.
-            await proc.write("agent off")
-            await proc.expect("Agent unregistered")
             # Without an agent, pairing is not possible.
-            await proc.expect("Controller 00:00:00:01:00:00 Pairable: no")
-            await proc.expect("Controller 00:00:00:02:00:00 Pairable: no")
+            await proc.expect("Controller 00:00:00:11:11:11 Pairable: no")
+            await proc.expect("Controller 00:00:00:22:22:22 Pairable: no")
 
             await proc.write("agent NoInputNoOutput")
             await proc.expect("Agent registered")
-            await proc.expect("Controller 00:00:00:01:00:00 Pairable: yes")
-            await proc.expect("Controller 00:00:00:02:00:00 Pairable: yes")
+            await proc.expect("Controller 00:00:00:11:11:11 Pairable: yes")
+            await proc.expect("Controller 00:00:00:22:22:22 Pairable: yes")
 
             await proc.write("default-agent")
             await proc.expect("Default agent request successful")
@@ -124,7 +128,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_discoverable(self):
         async with await client() as proc:
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("discoverable on")
             await proc.expect("Changing discoverable on succeeded")
 
@@ -135,31 +139,31 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_scan(self):
         async with await client() as proc:
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("discoverable on")
             await proc.expect("Changing discoverable on succeeded")
 
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             await proc.write("scan on")
             await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:11:11:11")
 
     async def test_scan_le(self):
         async with await client() as proc:
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("advertise on")
             await proc.expect("Advertising object registered")
 
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             await proc.write("scan le")
             await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:11:11:11")
 
     async def test_advertise_le(self):
         async with await client() as proc:
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("advertise.name BLE-Device")
             await proc.write("advertise.appearance 0x00a0")
             await proc.write("advertise.uuids 0xFFF1")
@@ -168,22 +172,22 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("advertise peripheral")
             await proc.expect("Advertising object registered")
 
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             await proc.write("scan le")
             await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("info 00:00:00:01:00:00")
+            await proc.write("info 00:00:00:11:11:11")
             await proc.expect("Name: BLE-Device")
             await proc.expect("Appearance: 0x00a0")
             await proc.expect("ServiceData.0000fff1-0000-1000-8000-00805f9b34fb:")
 
             # Update the advertisement data and verify that the changes
             # are visible to the scanner.
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("advertise.name BLE-Device-42")
 
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             # The scan interval is 1 second, so we need to wait for the
             # scanner to pick up the new advertisement data.
             await proc.expect("Name: BLE-Device-42", timeout=1.5)
@@ -214,60 +218,52 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
 
     async def test_pair(self):
-        async with await client() as proc:
+        async with await client(no_agent=True) as proc:
 
-            # Wait for the default agent to be registered.
-            await proc.expect("Agent registered")
             # Register agent for auto-pairing process.
-            await proc.write("agent off")
-            await proc.expect("Agent unregistered")
             await proc.write("agent NoInputNoOutput")
             await proc.expect("Agent registered")
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("discoverable on")
             await proc.expect("Changing discoverable on succeeded")
 
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             await proc.write("scan on")
             await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("pair 00:00:00:01:00:00")
+            await proc.write("pair 00:00:00:11:11:11")
             await proc.expect("Pairing successful")
 
             # Verify that the device is paired.
-            await proc.write("info 00:00:00:01:00:00")
-            await proc.expect("Device 00:00:00:01:00:00 (public)")
+            await proc.write("info 00:00:00:11:11:11")
+            await proc.expect("Device 00:00:00:11:11:11 (public)")
             await proc.expect("Paired: yes")
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             # Verify that the device is paired.
-            await proc.write("info 00:00:00:02:00:00")
-            await proc.expect("Device 00:00:00:02:00:00 (public)")
+            await proc.write("info 00:00:00:22:22:22")
+            await proc.expect("Device 00:00:00:22:22:22 (public)")
             await proc.expect("Paired: yes")
 
     async def test_connect(self):
-        async with await client() as proc:
+        async with await client(no_agent=True) as proc:
 
-            # Wait for the default agent to be registered.
-            await proc.expect("Agent registered")
             # Register agent for auto-pairing process.
-            await proc.write("agent off")
-            await proc.expect("Agent unregistered")
             await proc.write("agent NoInputNoOutput")
             await proc.expect("Agent registered")
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             await proc.write("discoverable on")
             await proc.expect("Changing discoverable on succeeded")
 
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             await proc.write("scan on")
             await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("connect 00:00:00:01:00:00")
+            await proc.write("connect 00:00:00:11:11:11")
             # The device is not trusted, so we need to accept the pairing.
             await proc.expect("[agent] Accept pairing (yes/no):", eol=False)
             await proc.write("yes")
@@ -275,20 +271,51 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Connection successful")
 
             # Verify that the device is connected.
-            await proc.write("info 00:00:00:01:00:00")
-            await proc.expect("Device 00:00:00:01:00:00 (public)")
+            await proc.write("info 00:00:00:11:11:11")
+            await proc.expect("Device 00:00:00:11:11:11 (public)")
             await proc.expect("Connected: yes")
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             # Verify that the device is connected.
-            await proc.write("info 00:00:00:02:00:00")
-            await proc.expect("Device 00:00:00:02:00:00 (public)")
+            await proc.write("info 00:00:00:22:22:22")
+            await proc.expect("Device 00:00:00:22:22:22 (public)")
             await proc.expect("Connected: yes")
+
+    async def test_disconnect(self):
+        async with await client(no_agent=True) as proc:
+
+            # Register agent for auto-pairing process.
+            await proc.write("agent NoInputNoOutput")
+            await proc.expect("Agent registered")
+
+            await proc.write("select 00:00:00:11:11:11")
+            await proc.write("discoverable on")
+
+            await proc.write("select 00:00:00:22:22:22")
+            await proc.write("scan on")
+            await proc.expect("Device 00:00:00:11:11:11")
+
+            await proc.write("connect 00:00:00:11:11:11")
+            # The device is not trusted, so we need to accept the pairing.
+            await proc.expect("[agent] Accept pairing (yes/no):", eol=False)
+            await proc.write("yes")
+
+            await proc.expect("Connection successful")
+
+            # Remove the device - this should trigger disconnection.
+            await proc.write("remove 00:00:00:11:11:11")
+            await proc.expect("Device has been removed")
+
+            # The device is not longer available on our side, but verify that
+            # on the other side (the other adapter) our device is disconnected.
+            await proc.write("select 00:00:00:11:11:11")
+            await proc.write("info 00:00:00:22:22:22")
+            await proc.expect("Connected: no")
 
     async def test_connect_gatt(self):
         async with await client() as proc:
 
-            await proc.write("select 00:00:00:01:00:00")
+            await proc.write("select 00:00:00:11:11:11")
             # Setup GATT primary service.
             await proc.write("gatt.register-service 0xF100")
             await proc.expect("Primary (yes/no):", eol=False)
@@ -316,13 +343,13 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Advertising object registered")
 
             # Scan for the GATT service on second adapter.
-            await proc.write("select 00:00:00:02:00:00")
+            await proc.write("select 00:00:00:22:22:22")
             await proc.write("scan le")
             await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:01:00:00")
+            await proc.expect("Device 00:00:00:11:11:11")
 
             # Connect to the GATT service.
-            await proc.write("connect 00:00:00:01:00:00")
+            await proc.write("connect 00:00:00:11:11:11")
             await proc.expect("Connection successful")
 
             # Verify that we can read 0xF110 characteristic.
