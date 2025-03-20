@@ -1,64 +1,28 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-import logging
-from typing import Optional
-
 import sdbus
 
-from ..utils import DBusClientMixin, dbus_method_async, dbus_method_async_except_logging
-from .Agent import AgentInterface
-
-
-class Agent(DBusClientMixin, AgentInterface):
-    """D-Bus client for the Agent interface."""
-
-    def __init__(self, service, path, capability: str):
-        super().__init__(service, path)
-        self.capability = capability
+from ..utils import dbus_method_async
 
 
 class AgentManagerInterface(sdbus.DbusInterfaceCommonAsync,
                             interface_name="org.bluez.AgentManager1"):
 
-    async def add_agent(self, agent: Agent) -> None:
-        raise NotImplementedError
-
-    async def del_agent(self, agent: Agent) -> None:
-        raise NotImplementedError
-
-    def get_agent(self, client, path) -> Optional[Agent]:
-        raise NotImplementedError
-
-    async def set_default_agent(self, agent: Agent) -> None:
-        raise NotImplementedError
-
     @dbus_method_async(
         input_signature="os",
         input_args_names=("agent", "capability"))
-    @dbus_method_async_except_logging
     async def RegisterAgent(self, agent: str, capability: str) -> None:
-        sender = sdbus.get_current_message().sender
-        capability = capability or "KeyboardDisplay"  # Fallback to default capability.
-        logging.debug(f"Client {sender} requested to register agent {agent}")
-        await self.add_agent(Agent(sender, agent, capability))
+        raise NotImplementedError
 
     @dbus_method_async(
         input_signature="o",
         input_args_names=("agent",))
-    @dbus_method_async_except_logging
     async def UnregisterAgent(self, agent: str) -> None:
-        sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to unregister agent {agent}")
-        if agent_ := self.get_agent(sender, agent):
-            await self.del_agent(agent_)
+        raise NotImplementedError
 
     @dbus_method_async(
         input_signature="o",
         input_args_names=("agent",))
-    @dbus_method_async_except_logging
     async def RequestDefaultAgent(self, agent: str) -> None:
-        sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to set {agent} as default agent")
-        if agent_ := self.get_agent(sender, agent):
-            await self.set_default_agent(agent_)
+        raise NotImplementedError

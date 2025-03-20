@@ -3,9 +3,23 @@
 
 import asyncio
 import logging
-from typing import Optional
 
-from .interfaces.AgentManager import Agent, AgentManagerInterface
+import sdbus
+
+from .interfaces.Agent import AgentInterface
+from .interfaces.AgentManager import AgentManagerInterface
+from .utils import DBusClientMixin, dbus_method_async_except_logging
+
+
+class Agent(DBusClientMixin, AgentInterface):
+    """D-Bus client for the Agent interface."""
+
+    def __init__(self, service, path, capability: str):
+        super().__init__(service, path)
+        self.capability = capability
+
+    def __str__(self):
+        return f"agent[{self.capability}]"
 
 
 class Controller(AgentManagerInterface):
@@ -15,23 +29,45 @@ class Controller(AgentManagerInterface):
         super().__init__()
 
         self.agent = None
-        self.agents = []
+        self.agents = {}
 
     def get_object_path(self):
         return "/org/bluez"
 
-    async def add_agent(self, agent):
-        logging.info(f"Adding agent with {agent.capability} capability")
+    async def __del_agent(self, agent: Agent):
+        logging.info(f"Unregistering {agent}")
+
+        if agent == self.agent:
+            self.agent = None
+        self.service.on_client_lost_remove(agent.get_client(), agent.on_client_lost)
+        self.agents.pop(agent.get_destination())
+
+        if self.agents:
+            # Promote the lastly registered agent to be the default one.
+            self.agent = list(self.agent.values())[-1]
+
+        if self.agent is None:
+            # If there are no agents, the adapters cannot be pairable.
+            for adapter in self.service.adapters.values():
+                asyncio.create_task(adapter.Pairable.set_async(False))
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def RegisterAgent(self, path: str, capability: str) -> None:
+        sender = sdbus.get_current_message().sender
+        logging.debug(f"Client {sender} requested to register agent {path}")
+        capability = capability or "KeyboardDisplay"  # Fallback to default capability.
+
+        agent = Agent(sender, path, capability)
+        logging.info(f"Registering {agent}")
 
         if self.agent is None:
             self.agent = agent
-        self.agents.append(agent)
+        self.agents[sender, path] = agent
 
         async def on_client_lost():
-            client, path = agent.get_client(), agent.get_object_path()
-            logging.debug(f"Client {client} lost, removing agent {path}")
-            await self.del_agent(agent)
-        self.service.on_client_lost(agent.get_client(), on_client_lost)
+            await self.__del_agent(agent)
+        self.service.on_client_lost(sender, on_client_lost)
         agent.on_client_lost = on_client_lost
 
         # If there is at least one agent, the adapters are pairable.
@@ -39,29 +75,19 @@ class Controller(AgentManagerInterface):
             if not adapter.pairable:
                 asyncio.create_task(adapter.Pairable.set_async(True))
 
-    async def del_agent(self, agent):
-        logging.info(f"Removing agent with {agent.capability} capability")
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def UnregisterAgent(self, path: str) -> None:
+        sender = sdbus.get_current_message().sender
+        logging.debug(f"Client {sender} requested to unregister agent {path}")
+        if agent := self.agents.get((sender, path)):
+            await self.__del_agent(agent)
 
-        if agent == self.agent:
-            self.agent = None
-        self.service.on_client_lost_remove(agent.get_client(), agent.on_client_lost)
-        self.agents.remove(agent)
-
-        if self.agents:
-            # Promote the lastly registered agent to be the default one.
-            self.agent = self.agents[-1]
-
-        if self.agent is None:
-            # If there are no agents, the adapters cannot be pairable.
-            for adapter in self.service.adapters.values():
-                asyncio.create_task(adapter.Pairable.set_async(False))
-
-    def get_agent(self, client, path) -> Optional[Agent]:
-        for agent in self.agents:
-            if agent.get_client() == client and agent.get_object_path() == path:
-                return agent
-        return None
-
-    async def set_default_agent(self, agent):
-        logging.info(f"Setting default agent with {agent.capability} capability")
-        self.agent = agent
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def RequestDefaultAgent(self, path: str) -> None:
+        sender = sdbus.get_current_message().sender
+        logging.debug(f"Client {sender} requested to set {path} as default agent")
+        if agent := self.agents.get((sender, path)):
+            logging.info(f"Setting {agent} as default agent")
+            self.agent = agent
