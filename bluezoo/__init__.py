@@ -5,7 +5,6 @@ import asyncio
 import logging
 from argparse import ArgumentParser
 
-from .exceptions import *
 from .service import BluezMockService
 from .utils import BluetoothAddress, setup_default_bus
 
