@@ -3,11 +3,14 @@
 
 import asyncio
 import logging
+from typing import Any
+
+import sdbus
 
 from .gatt import (GattCharacteristicClient, GattCharacteristicClientLink, GattDescriptorClient,
                    GattDescriptorClientLink, GattServiceClient, GattServiceClientLink)
 from .interfaces.Device import DeviceInterface
-from .utils import NoneTask
+from .utils import NoneTask, dbus_method_async_except_logging, dbus_property_async_except_logging
 
 
 class Device(DeviceInterface):
@@ -164,7 +167,153 @@ class Device(DeviceInterface):
         except asyncio.TimeoutError:
             logging.info(f"Pairing with {self} timed out")
 
-    async def cancel_pairing(self) -> None:
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def Connect(self) -> None:
+        await self.connect()
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def Disconnect(self) -> None:
+        await self.disconnect()
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def ConnectProfile(self, uuid: str) -> None:
+        await self.connect(uuid)
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def DisconnectProfile(self, uuid: str) -> None:
+        await self.disconnect(uuid)
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def Pair(self) -> None:
+        await self.pair()
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def CancelPairing(self) -> None:
         if not self.pairing_task.done():
             logging.info(f"Canceling pairing with {self}")
         self.pairing_task.cancel()
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Address(self) -> str:
+        return self.address
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def AddressType(self) -> str:
+        return "public"
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Name(self) -> str:
+        return self.name_
+
+    @Name.setter_private
+    def Name_setter(self, value: str):
+        self.name_ = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Alias(self) -> str:
+        return self.name
+
+    @Alias.setter
+    def Alias_setter(self, value: str):
+        self.name = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Class(self) -> int:
+        return self.class_
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Appearance(self) -> int:
+        return self.appearance
+
+    @Appearance.setter_private
+    def Appearance_setter(self, value: int):
+        self.appearance = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def UUIDs(self) -> list[str]:
+        return self.uuids
+
+    @UUIDs.setter_private
+    def UUIDs_setter(self, value: list[str]):
+        self.uuids = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Paired(self) -> bool:
+        return self.paired
+
+    @Paired.setter_private
+    def Paired_setter(self, value: bool):
+        self.paired = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Bonded(self) -> bool:
+        return self.bonded
+
+    @Bonded.setter_private
+    def Bonded_setter(self, value: bool):
+        self.bond = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Trusted(self) -> bool:
+        return self.trusted
+
+    @Trusted.setter
+    def Trusted_setter(self, value: bool):
+        self.trusted = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Blocked(self) -> bool:
+        return self.blocked
+
+    @Blocked.setter
+    def Blocked_setter(self, value: bool):
+        self.blocked = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Connected(self) -> bool:
+        return self.connected
+
+    @Connected.setter_private
+    def Connected_setter(self, value: bool):
+        self.connected = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Adapter(self) -> str:
+        return self.adapter.get_object_path()
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def ServiceData(self) -> dict[str, tuple[str, Any]]:
+        return self.service_data
+
+    @ServiceData.setter_private
+    def ServiceData_setter(self, value: dict[str, tuple[str, Any]]):
+        self.service_data = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def ServicesResolved(self) -> bool:
+        return self.services_resolved
+
+    @ServicesResolved.setter_private
+    def ServicesResolved_setter(self, value: bool):
+        self.services_resolved = value

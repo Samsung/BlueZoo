@@ -5,11 +5,14 @@ import asyncio
 import logging
 from typing import Any
 
+import sdbus
+
 from .adv import LEAdvertisingManager
 from .device import Device
 from .gatt import GattManager
 from .interfaces.Adapter import AdapterInterface
-from .utils import BluetoothClass, BluetoothUUID, NoneTask
+from .utils import (BluetoothClass, BluetoothUUID, NoneTask, dbus_method_async_except_logging,
+                    dbus_property_async_except_logging)
 
 # List of predefined device names.
 TEST_NAMES = (
@@ -71,17 +74,6 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
         uuids.update(self.get_gatt_registered_primary_services())
         await self.UUIDs.set_async(list(uuids))
 
-    async def start_discovering(self, client):
-        logging.info(f"Starting discovery on {self}")
-        self.service.on_client_lost(client, self.stop_discovering)
-        self.discovering_task = self.service.create_discovering_task(self.id)
-        await self.Discovering.set_async(True)
-
-    async def stop_discovering(self):
-        logging.info(f"Stopping discovery on {self}")
-        self.discovering_task.cancel()
-        await self.Discovering.set_async(False)
-
     async def add_device(self, device: Device):
         device.setup_adapter(self)
         path = device.get_object_path()
@@ -99,7 +91,28 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
         self.devices.pop(device.get_object_path())
         self.service.manager.remove_managed_object(device)
 
-    def set_discovery_filter(self, properties: dict[str, tuple[str, Any]]) -> None:
+    async def __stop_discovering(self):
+        logging.info(f"Stopping discovery on {self}")
+        self.discovering_task.cancel()
+        await self.Discovering.set_async(False)
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def StartDiscovery(self) -> None:
+        sender = sdbus.get_current_message().sender
+        logging.info(f"Starting discovery on {self}")
+        self.service.on_client_lost(sender, self.__stop_discovering)
+        self.discovering_task = self.service.create_discovering_task(self.id)
+        await self.Discovering.set_async(True)
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def StopDiscovery(self) -> None:
+        await self.__stop_discovering()
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def SetDiscoveryFilter(self, properties: dict[str, tuple[str, Any]]) -> None:
         if value := properties.get("UUIDs"):
             self.scan_filter_uuids = [BluetoothUUID(x) for x in value[1]]
         if value := properties.get("Transport"):
@@ -111,10 +124,54 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
         if value := properties.get("Pattern"):
             self.scan_filter_pattern = value[1]
 
-    def set_discoverable(self, enabled: bool):
-        self.discoverable = enabled
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def RemoveDevice(self, device: str) -> None:
+        if device not in self.devices:
+            return
+        await self.del_device(self.devices[device])
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Address(self) -> str:
+        return self.address
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def AddressType(self) -> str:
+        return "public"
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Name(self) -> str:
+        return self.name_
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Alias(self) -> str:
+        return self.name
+
+    @Alias.setter
+    def Alias_setter(self, value: str):
+        self.name = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Class(self) -> int:
+        return self.class_
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Powered(self) -> bool:
+        return self.powered
+
+    @Powered.setter
+    def Powered_setter(self, value: bool):
+        self.powered = value
+
+    def __setup_discoverable_timeout(self):
         self.discoverable_task.cancel()
-        if enabled:
+        if self.discoverable:
             async def task():
                 """Set the adapter as non-discoverable after the timeout."""
                 await asyncio.sleep(self.discoverable_timeout)
@@ -124,10 +181,29 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
                 logging.info(f"Setting {self} as discoverable for {timeout} seconds")
                 self.discoverable_task = asyncio.create_task(task())
 
-    def set_pairable(self, enabled: bool):
-        self.pairable = enabled
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Discoverable(self) -> bool:
+        return self.discoverable
+
+    @Discoverable.setter
+    def Discoverable_setter(self, value: bool):
+        self.discoverable = value
+        self.__setup_discoverable_timeout()
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def DiscoverableTimeout(self) -> int:
+        return self.discoverable_timeout
+
+    @DiscoverableTimeout.setter
+    def DiscoverableTimeout_setter(self, value: int):
+        self.discoverable_timeout = value
+        self.__setup_discoverable_timeout()
+
+    def __setup_pairable_timeout(self):
         self.pairable_task.cancel()
-        if enabled:
+        if self.pairable:
             async def task():
                 """Set the adapter as non-pairable after the timeout."""
                 await asyncio.sleep(self.pairable_timeout)
@@ -136,3 +212,46 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
             if timeout := self.pairable_timeout:
                 logging.info(f"Setting {self} as pairable for {timeout} seconds")
                 self.pairable_task = asyncio.create_task(task())
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Pairable(self) -> bool:
+        return self.pairable
+
+    @Pairable.setter
+    def Pairable_setter(self, value: bool):
+        self.pairable = value
+        self.__setup_pairable_timeout()
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def PairableTimeout(self) -> int:
+        return self.pairable_timeout
+
+    @PairableTimeout.setter
+    def PairableTimeout_setter(self, value: int):
+        self.pairable_timeout = value
+        self.__setup_pairable_timeout()
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Discovering(self) -> bool:
+        return self.discovering
+
+    @Discovering.setter
+    def Discovering_setter(self, value: bool):
+        self.discovering = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def UUIDs(self) -> list[str]:
+        return self.uuids
+
+    @UUIDs.setter_private
+    def UUIDs_setter(self, value: list[str]):
+        self.uuids = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Roles(self) -> list[str]:
+        return ["central", "peripheral"]
