@@ -6,7 +6,7 @@ import logging
 import re
 import weakref
 from enum import IntFlag
-from functools import partial, wraps
+from functools import wraps
 
 import sdbus
 from sdbus.dbus_proxy_async_property import (DbusPropertyAsync, DbusPropertyAsyncLocalBind,
@@ -102,15 +102,6 @@ class DBusClientMixin:
 
     def get_object_path(self) -> str:
         return self._dbus.object_path
-
-
-# Method decorator that sets the Unprivileged flag by default.
-dbus_method_async = partial(sdbus.dbus_method_async,
-                            flags=sdbus.DbusUnprivilegedFlag)
-
-# Property decorator that sets the EmitsChange flag by default.
-dbus_property_async = partial(sdbus.dbus_property_async,
-                              flags=sdbus.DbusPropertyEmitsChangeFlag)
 
 
 def dbus_method_async_except_logging(func):
