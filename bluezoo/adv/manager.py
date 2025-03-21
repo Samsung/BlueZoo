@@ -6,6 +6,7 @@ from typing import Any
 
 import sdbus
 
+from ..exceptions import DBusBluezDoesNotExistError, DBusBluezNotPermittedError
 from ..interfaces.LEAdvertisement import LEAdvertisementInterface
 from ..interfaces.LEAdvertisingManager import LEAdvertisingManagerInterface
 from ..utils import (DBusClientMixin, dbus_method_async_except_logging,
@@ -19,6 +20,10 @@ class LEAdvertisement(DBusClientMixin, LEAdvertisementInterface):
         super().__init__(service, path)
         self.options = options
 
+    def __str__(self):
+        options = " ".join(f"{k}={v[1]}" for k, v in self.options.items())
+        return f"advertisement[{options}]"
+
 
 class LEAdvertisingManager(LEAdvertisingManagerInterface):
     """Bluetooth Low Energy (BLE) advertising manager."""
@@ -30,55 +35,57 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         super().__init__()
         self.advertisements = {}
 
+    @property
+    def __supported_instances(self) -> int:
+        return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
+
     async def __del_advertisement(self, adv: LEAdvertisement):
-        logging.info(f"Removing LE advertisement {adv.get_object_path()}")
+        logging.info(f"Removing {adv}")
 
         self.service.on_client_lost_remove(adv.get_client(), adv.on_client_lost)
         self.advertisements.pop(adv.get_destination())
 
-        await self.ActiveInstances.set_async(self.advertisement_slots_active)
-        await self.SupportedInstances.set_async(self.advertisement_slots_available)
-
-    @property
-    def advertisement_slots_active(self) -> int:
-        return len(self.advertisements)
-
-    @property
-    def advertisement_slots_available(self) -> int:
-        return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
+        await self.ActiveInstances.set_async(len(self.advertisements))
+        await self.SupportedInstances.set_async(self.__supported_instances)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
-    async def RegisterAdvertisement(self, advertisement: str,
+    async def RegisterAdvertisement(self, path: str,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to register advertisement {advertisement}")
+        logging.debug(f"Client {sender} requested to register advertisement {path}")
 
-        adv = LEAdvertisement(sender, advertisement, options)
+        if not self.__supported_instances:
+            raise DBusBluezNotPermittedError("Not Permitted")
+
+        adv = LEAdvertisement(sender, path, options)
         await adv.properties_setup_sync_task()
 
-        logging.info(f"Adding LE advertisement {adv.get_object_path()}")
-        self.advertisements[sender, advertisement] = adv
+        logging.info(f"Registering {adv}")
+        self.advertisements[sender, path] = adv
 
         async def on_client_lost():
             await self.__del_advertisement(adv)
         self.service.on_client_lost(adv.get_client(), on_client_lost)
         adv.on_client_lost = on_client_lost
 
-        await self.ActiveInstances.set_async(self.advertisement_slots_active)
-        await self.SupportedInstances.set_async(self.advertisement_slots_available)
+        await self.ActiveInstances.set_async(len(self.advertisements))
+        await self.SupportedInstances.set_async(self.__supported_instances)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
-    async def UnregisterAdvertisement(self, advertisement: str) -> None:
+    async def UnregisterAdvertisement(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to unregister advertisement {advertisement}")
-        await self.__del_advertisement(self.advertisements[sender, advertisement])
+        logging.debug(f"Client {sender} requested to unregister advertisement {path}")
+        if adv := self.advertisements.get((sender, path)):
+            await self.__del_advertisement(adv)
+            return
+        raise DBusBluezDoesNotExistError("Does Not Exist")
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
     def ActiveInstances(self) -> int:
-        return self.advertisement_slots_active
+        return len(self.advertisements)
 
     @ActiveInstances.setter_private
     def ActiveInstances_setter(self, value: int) -> None:
@@ -87,7 +94,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
     def SupportedInstances(self) -> int:
-        return self.advertisement_slots_available
+        return self.__supported_instances
 
     @SupportedInstances.setter_private
     def SupportedInstances_setter(self, value: int) -> None:

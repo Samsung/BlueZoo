@@ -117,7 +117,7 @@ class BluezMockService:
                     device = None
 
                     # Check if adapter has enabled LE advertising.
-                    if is_scan_le and adapter.advertisement_slots_active > 0:
+                    if is_scan_le and len(adapter.advertisements):
                         adv = next(iter(adapter.advertisements.values()))
                         # The LE advertisement discoverable property is not mandatory,
                         # but if present, it overrides the adapter's property.
