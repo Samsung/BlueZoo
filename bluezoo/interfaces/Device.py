@@ -81,6 +81,17 @@ class DeviceInterface(
     ) -> None:
         raise NotImplementedError
 
+    @sdbus.dbus_method_async(
+        input_signature="",
+        input_args_names=[],
+        result_signature="aay",
+        result_args_names=["r0"],
+        flags=sdbus.DbusUnprivilegedFlag)
+    async def GetServiceRecords(
+        self
+    ) -> list[bytes]:
+        raise NotImplementedError
+
     @sdbus.dbus_property_async(
         property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
@@ -97,6 +108,12 @@ class DeviceInterface(
         property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Name(self) -> str:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="s",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def Icon(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
@@ -148,6 +165,12 @@ class DeviceInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
+        property_signature="b",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def WakeAllowed(self) -> bool:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
         property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Alias(self) -> str:
@@ -160,6 +183,36 @@ class DeviceInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
+        property_signature="b",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def LegacyPairing(self) -> bool:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="s",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def Modalias(self) -> str:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="n",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def RSSI(self) -> int:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="n",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def TxPower(self) -> int:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="a{sv}",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def ManufacturerData(self) -> dict[str, tuple[str, object]]:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
         property_signature="a{sv}",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ServiceData(self) -> dict[str, tuple[str, object]]:
@@ -169,4 +222,22 @@ class DeviceInterface(
         property_signature="b",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ServicesResolved(self) -> bool:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="ay",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def AdvertisingFlags(self) -> bytes:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="a{sv}",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def AdvertisingData(self) -> dict[str, tuple[str, object]]:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="s",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def PreferredBearer(self) -> str:
         raise NotImplementedError

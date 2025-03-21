@@ -31,22 +31,31 @@ class Device(DeviceInterface):
 
         self.is_le = False
         self.is_br_edr = False
+        self.bearer = "last-seen"
 
         self.address = peer_adapter.address
         self.name_ = peer_adapter.name
         self.class_ = peer_adapter.class_
+        self.icon = peer_adapter.class_.icon
         self.appearance = 0
         self.paired = False
         self.pairing_task = NoneTask()
         self.bonded = False
         self.trusted = False
         self.blocked = False
+        self.wake_allowed = False
         self.connected = False
         self.connecting_task = NoneTask()
         self.services = {}
         self.services_resolved = False
+        self.manufacturer_data = {}
         self.service_data = {}
+        self.advertising_flags = b""
+        self.advertising_data = {}
         self.uuids = []
+
+        self.tx_power = None
+        self.rssi = 0
 
         # Set the properties from the keyword arguments.
         for key, value in kwargs.items():
@@ -81,6 +90,8 @@ class Device(DeviceInterface):
             await self.Appearance.set_async(device.appearance)
         if self.uuids != device.uuids:
             await self.ServiceUUIDs.set_async(device.uuids)
+        if self.manufacturer_data != device.manufacturer_data:
+            await self.ManufacturerData.set_async(device.manufacturer_data)
         if self.service_data != device.service_data:
             await self.ServiceData.set_async(device.service)
 
@@ -199,6 +210,11 @@ class Device(DeviceInterface):
             logging.info(f"Canceling pairing with {self}")
         self.pairing_task.cancel()
 
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
+    async def GetServiceRecords(self) -> list[bytes]:
+        return []
+
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
     def Address(self) -> str:
@@ -215,8 +231,13 @@ class Device(DeviceInterface):
         return self.name_
 
     @Name.setter_private
-    def Name_setter(self, value: str):
+    def Name_setter(self, value):
         self.name_ = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Icon(self) -> str:
+        return self.icon
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
@@ -224,7 +245,7 @@ class Device(DeviceInterface):
         return self.name
 
     @Alias.setter
-    def Alias_setter(self, value: str):
+    def Alias_setter(self, value):
         self.name = value
 
     @sdbus.dbus_property_async_override()
@@ -238,7 +259,7 @@ class Device(DeviceInterface):
         return self.appearance
 
     @Appearance.setter_private
-    def Appearance_setter(self, value: int):
+    def Appearance_setter(self, value):
         self.appearance = value
 
     @sdbus.dbus_property_async_override()
@@ -247,7 +268,7 @@ class Device(DeviceInterface):
         return self.uuids
 
     @UUIDs.setter_private
-    def UUIDs_setter(self, value: list[str]):
+    def UUIDs_setter(self, value):
         self.uuids = value
 
     @sdbus.dbus_property_async_override()
@@ -256,7 +277,7 @@ class Device(DeviceInterface):
         return self.paired
 
     @Paired.setter_private
-    def Paired_setter(self, value: bool):
+    def Paired_setter(self, value):
         self.paired = value
 
     @sdbus.dbus_property_async_override()
@@ -265,7 +286,7 @@ class Device(DeviceInterface):
         return self.bonded
 
     @Bonded.setter_private
-    def Bonded_setter(self, value: bool):
+    def Bonded_setter(self, value):
         self.bond = value
 
     @sdbus.dbus_property_async_override()
@@ -274,7 +295,7 @@ class Device(DeviceInterface):
         return self.trusted
 
     @Trusted.setter
-    def Trusted_setter(self, value: bool):
+    def Trusted_setter(self, value):
         self.trusted = value
 
     @sdbus.dbus_property_async_override()
@@ -283,8 +304,17 @@ class Device(DeviceInterface):
         return self.blocked
 
     @Blocked.setter
-    def Blocked_setter(self, value: bool):
+    def Blocked_setter(self, value):
         self.blocked = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def WakeAllowed(self) -> bool:
+        return self.wake_allowed
+
+    @WakeAllowed.setter
+    def WakeAllowed_setter(self, value):
+        self.wake_allowed = value
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
@@ -292,7 +322,7 @@ class Device(DeviceInterface):
         return self.connected
 
     @Connected.setter_private
-    def Connected_setter(self, value: bool):
+    def Connected_setter(self, value):
         self.connected = value
 
     @sdbus.dbus_property_async_override()
@@ -302,11 +332,40 @@ class Device(DeviceInterface):
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
+    def LegacyPairing(self) -> bool:
+        return False
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Modalias(self) -> str:
+        return "usb:v1D6Bp0246d0537"
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def RSSI(self) -> int:
+        return self.rssi
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def TxPower(self) -> int:
+        return self.tx_power or 0
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def ManufacturerData(self) -> dict[str, tuple[str, object]]:
+        return self.manufacturer_data
+
+    @ManufacturerData.setter_private
+    def ManufacturerData_setter(self, value):
+        self.manufacturer_data = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
     def ServiceData(self) -> dict[str, tuple[str, Any]]:
         return self.service_data
 
     @ServiceData.setter_private
-    def ServiceData_setter(self, value: dict[str, tuple[str, Any]]):
+    def ServiceData_setter(self, value):
         self.service_data = value
 
     @sdbus.dbus_property_async_override()
@@ -315,5 +374,24 @@ class Device(DeviceInterface):
         return self.services_resolved
 
     @ServicesResolved.setter_private
-    def ServicesResolved_setter(self, value: bool):
+    def ServicesResolved_setter(self, value):
         self.services_resolved = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def AdvertisingFlags(self) -> bytes:
+        return self.advertising_flags
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def AdvertisingData(self) -> dict[str, tuple[str, object]]:
+        return self.advertising_data
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def PreferredBearer(self) -> str:
+        return self.bearer
+
+    @PreferredBearer.setter
+    def PreferredBearer_setter(self, value):
+        self.bearer = value

@@ -127,8 +127,10 @@ class BluezMockService:
                         device.name_ = adv.LocalName.get(adapter.name)
                         device.appearance = adv.Appearance.get(0)
                         device.uuids = [BluetoothUUID(x) for x in adv.ServiceUUIDs.get([])]
+                        device.manufacturer_data = adv.ManufacturerData.get({})
                         device.service_data = {BluetoothUUID(k): v
                                                for k, v in adv.ServiceData.get({}).items()}
+                        device.tx_power = adv.TxPower.get()
                         # Report discoverable LE device on our adapter.
                         await self.adapters[id].add_device(device)
 

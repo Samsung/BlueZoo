@@ -60,6 +60,17 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
+        input_signature="",
+        input_args_names=[],
+        result_signature="as",
+        result_args_names=["r0"],
+        flags=sdbus.DbusUnprivilegedFlag)
+    async def GetDiscoveryFilters(
+        self
+    ) -> list[str]:
+        raise NotImplementedError
+
+    @sdbus.dbus_method_async(
         input_signature="a{sv}",
         input_args_names=["properties"],
         result_signature="o",
@@ -104,7 +115,19 @@ class AdapterInterface(
     @sdbus.dbus_property_async(
         property_signature="b",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def Connectable(self) -> bool:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="b",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Powered(self) -> bool:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="s",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def PowerState(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
@@ -144,7 +167,31 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
+        property_signature="s",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def Modalias(self) -> str:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
         property_signature="as",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Roles(self) -> list[str]:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="as",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def ExperimentalFeatures(self) -> list[str]:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="q",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def Manufacturer(self) -> int:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
+        property_signature="y",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def Version(self) -> int:
         raise NotImplementedError

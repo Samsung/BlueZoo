@@ -37,6 +37,7 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
         self.name_ = TEST_NAMES[id % len(TEST_NAMES)]
         self.class_ = BluetoothClass(BluetoothClass.Major.Computer)
         self.powered = False
+        self.connectable = False
         self.discoverable = False
         self.discoverable_timeout = 180
         self.discoverable_task = NoneTask()
@@ -126,6 +127,12 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
+    async def GetDiscoveryFilters(self) -> list[str]:
+        return ["UUIDs", "RSSI", "Pathloss", "Transport", "DuplicateData",
+                "Discoverable", "Pattern"]
+
+    @sdbus.dbus_method_async_override()
+    @dbus_method_async_except_logging
     async def RemoveDevice(self, device: str) -> None:
         if device not in self.devices:
             return
@@ -167,7 +174,28 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
 
     @Powered.setter
     def Powered_setter(self, value: bool):
+        asyncio.create_task(self.PowerState.set_async(value))
         self.powered = value
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def PowerState(self) -> bool:
+        return "on" if self.powered else "off"
+
+    @PowerState.setter_private
+    def PowerState_setter(self, value: str):
+        pass
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Connectable(self) -> bool:
+        return self.connectable
+
+    @Connectable.setter
+    def Connectable_setter(self, value: bool):
+        if not value:
+            asyncio.create_task(self.Discoverable.set_async(False))
+        self.connectable = value
 
     def __setup_discoverable_timeout(self):
         self.discoverable_task.cancel()
@@ -253,5 +281,25 @@ class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
+    def Modalias(self) -> str:
+        return "usb:v1D6Bp0246d0537"
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
     def Roles(self) -> list[str]:
-        return ["central", "peripheral"]
+        return ["central", "peripheral", "central-peripheral"]
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def ExperimentalFeatures(self) -> list[str]:
+        return []
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Manufacturer(self) -> int:
+        return 0x05F1
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
+    def Version(self) -> int:
+        return 0x06

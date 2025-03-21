@@ -196,6 +196,23 @@ class BluetoothClass(int):
         return BluetoothClass(self.major, self.minor, self.services & ~other)
 
     @property
+    def icon(self):
+        """Icon name for the Bluetooth Class."""
+        if self.major == BluetoothClass.Major.Computer:
+            return "computer"
+        if self.major == BluetoothClass.Major.Phone:
+            return "phone"
+        if self.major == BluetoothClass.Major.NetworkAccessPoint:
+            return "network-wireless"
+        if self.major == BluetoothClass.Major.AudioVideo:
+            return "audio-card"
+        if self.major == BluetoothClass.Major.Peripheral:
+            return "input-keyboard"
+        if self.major == BluetoothClass.Major.Imaging:
+            return "camera-photo"
+        return "bluetooth"
+
+    @property
     def major(self):
         return BluetoothClass.Major((self >> 8) & 0x1F)
 
