@@ -22,7 +22,7 @@ dependencies = ["pyparsing>=3.0.0", "sdbus>=0.13.0"]
 bluezoo = "bluezoo:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
+exclude = ["scripts*", "tests*"]
 
 [tool.autopep8]
 max-line-length = 99
