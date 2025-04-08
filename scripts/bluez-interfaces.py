@@ -53,7 +53,6 @@ TYPES = {
     "properties": "a{sa{sv}}",
     "signature": "g",
     "string": "s",
-    "uint16_t": "q",
     "uint16": "q",
     "uint32": "u",
     "uint64": "t",
@@ -128,8 +127,9 @@ def comment(parent: ET.Element, text: str):
 
 
 parser = ArgumentParser(description="Extract D-Bus API from BlueZ documentation")
-parser.add_argument("-l", "--list", action="store_true", help="list interfaces")
-parser.add_argument("--output-dir", metavar="DIR", type=Path, default=Path("."),
+parser.add_argument("-v", "--verbose", action="store_true", help="show verbose output")
+parser.add_argument("-l", "--list", action="store_true", help="list all extracted interfaces")
+parser.add_argument("-o", "--output-dir", metavar="DIR", type=Path, default=Path("."),
                     help="output directory")
 parser.add_argument("--save-xml", action="store_true", help="save XML files")
 parser.add_argument("sources", metavar="FILE", type=FileType("r"), nargs="+",
@@ -137,9 +137,9 @@ parser.add_argument("sources", metavar="FILE", type=FileType("r"), nargs="+",
 
 args = parser.parse_args()
 
-re_interface = re.compile(r"^Interface$")
-re_methods = re.compile(r"^Methods$")
-re_properties = re.compile(r"^Properties$")
+re_section_interface = re.compile(r"^Interface$")
+re_section_methods = re.compile(r"^Methods$")
+re_section_properties = re.compile(r"^Properties$")
 
 re_service = re.compile(r":Service:\s+(.+)")
 re_interface = re.compile(r":Interface:\s+(.+)")
@@ -149,6 +149,9 @@ re_property = re.compile(r"([\w\{\}]+)\s+(\w+)(\s+\[(.+)\])")
 
 interfaces = []
 for source in args.sources:
+    if args.verbose:
+        print(f"Parsing {source.name}")
+
     with source as f:
         lines = f.readlines()
 
@@ -165,11 +168,11 @@ for source in args.sources:
             paragraph += 1
             continue
 
-        if m := re_interface.match(line):
+        if m := re_section_interface.match(line):
             section = "interface"
-        elif m := re_methods.match(line):
+        elif m := re_section_methods.match(line):
             section = "methods"
-        elif m := re_properties.match(line):
+        elif m := re_section_properties.match(line):
             section = "properties"
 
         if section == "interface":
@@ -261,9 +264,10 @@ TEMPLATE_PROPERTY = """
 """
 
 for interface in interfaces:
+    if args.verbose:
+        print(f"Generating {interface.get('name')}")
 
     if args.save_xml:
-        print(f"Writing {interface.get('name')}.xml")
         root = ET.Element("node")
         root.set("xmlns:doc", "http://www.freedesktop.org/dbus/1.0/doc.dtd")
         root.append(interface)
@@ -272,7 +276,9 @@ for interface in interfaces:
         ET.ElementTree(root).write(str(file))
 
     # Do not include namespaces and version in the interface name.
-    name = interface.get("name").split(".")[-1].rstrip("1")
+    name = interface.get("name").removeprefix("org.bluez.").rstrip("1")
+    # Remove dot and capitalize the first letter for OBEX interfaces.
+    name = name[0].upper() + name[1:].replace(".", "")
     with open(args.output_dir / f"{name}.py", "w") as f:
         f.write(TEMPLATE_HEADER.lstrip())
 

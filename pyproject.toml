@@ -18,6 +18,9 @@ classifiers = [
 ]
 dependencies = ["pyparsing>=3.0.0", "sdbus>=0.13.0"]
 
+[project.urls]
+Homepage = "https://github.com/Samsung/BlueZoo"
+
 [project.scripts]
 bluezoo = "bluezoo:main"
 

@@ -6,7 +6,7 @@ import re
 from argparse import ArgumentParser, FileType
 
 parser = ArgumentParser(description="Generate mappings for BlueZ D-Bus errors")
-parser.add_argument("--output", type=FileType("w"), default="exceptions.py",
+parser.add_argument("-o", "--output", type=FileType("w"), default="exceptions.py",
                     help="output file; defaults to %(default)s")
 parser.add_argument("sources", metavar="FILE", type=FileType("r"), nargs="+",
                     help="input file(s)")

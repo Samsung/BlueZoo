@@ -1,0 +1,25 @@
+name: Check Conformance with BlueZ
+
+on:
+  push:
+  pull_request:
+    branches: [ master ]
+  schedule:
+    - cron: '45 6 * * 0'
+
+jobs:
+
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: bluez/bluez
+          path: bluez
+      - name: Sync D-Bus Errors
+        run: scripts/bluez-errors.py -o bluezoo/exceptions.py bluez/doc/*
+      - name: Sync D-Bus Interfaces
+        run: scripts/bluez-interfaces.py -v -o bluezoo/interfaces bluez/doc/org.bluez.*.rst
+      - name: Check for uncommitted changes
+        run: git diff --exit-code
