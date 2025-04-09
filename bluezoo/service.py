@@ -41,7 +41,7 @@ class EventEmitter:
 
 class BluezMockService:
 
-    def __init__(self, scan_interval: int):
+    def __init__(self, adapter_auto_enable: bool, scan_interval: int):
 
         # Proxy for the D-Bus daemon interface used
         # for listening to ownership changes.
@@ -58,6 +58,7 @@ class BluezMockService:
         self.manager.export_with_manager(self.controller.get_object_path(), self.controller)
 
         self.adapters: dict[int, Adapter] = {}
+        self.adapter_auto_enable = adapter_auto_enable
         self.scan_interval = scan_interval
 
     async def _client_lost_task(self):
@@ -76,16 +77,19 @@ class BluezMockService:
     def on_client_lost_remove(self, client: str, coroutine):
         self.events.remove(f"client:lost:{client}", coroutine)
 
-    def add_adapter(self, id: int, address: str):
+    async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self.controller, id, address)
+        adapter.powered = self.adapter_auto_enable
         logging.info(f"Adding {adapter}")
         self.manager.export_with_manager(adapter.get_object_path(), adapter)
         self.adapters[id] = adapter
         return adapter
 
-    def del_adapter(self, id: int):
+    async def del_adapter(self, id: int):
         adapter = self.adapters.pop(id)
         logging.info(f"Removing {adapter}")
+        for device in adapter.devices.values():
+            await adapter.del_device(device)
         self.manager.remove_managed_object(adapter)
 
     def create_discovering_task(self, id: int):
