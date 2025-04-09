@@ -20,7 +20,7 @@ dependencies = [
     "coloredlogs>=6.0.0",
     "pyventus>=0.6.0",
     "pyparsing>=3.0.0",
-    "sdbus>=0.14.0",
+    "sdbus>=0.14.1",
 ]
 
 [project.urls]

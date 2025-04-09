@@ -99,14 +99,14 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
             await self.devices[path].properties_sync(device)
             return
         logger.info(f"Adding {device} to {self}")
-        self.mock.manager.export_with_manager(path, device)
+        self.mock.export_object(path, device)
         self.devices[path] = device
 
     async def del_device(self, device: Device):
         await device.disconnect()
         logger.info(f"Removing {device} from {self}")
         self.devices.pop(device.get_object_path())
-        self.mock.manager.remove_managed_object(device)
+        self.mock.remove_object(device)
         await device.cleanup()
 
     async def __stop_discovering(self):

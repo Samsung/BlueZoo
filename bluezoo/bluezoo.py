@@ -4,8 +4,10 @@
 import asyncio
 import logging
 from argparse import ArgumentParser
+from typing import Any
 
 import sdbus
+from sdbus.dbus_proxy_async_object_manager import DbusObjectManagerExportHandle
 from sdbus_async.dbus_daemon import FreedesktopDbus
 
 from . import events
@@ -31,10 +33,11 @@ class BluezMockService:
         self.bluezoo.export_to_dbus("/org/bluezoo")
 
         self.manager = sdbus.DbusObjectManagerInterfaceAsync()
+        self.manager_export_handles: dict[Any, DbusObjectManagerExportHandle] = {}
         self.manager.export_to_dbus("/")
 
         self.root = RootManager(self)
-        self.manager.export_with_manager(self.root.get_object_path(), self.root)
+        self.export_object(self.root.get_object_path(), self.root)
 
         self.adapters: dict[int, Adapter] = {}
         self.adapter_auto_enable = adapter_auto_enable
@@ -51,10 +54,20 @@ class BluezMockService:
                 logger.debug(f"D-Bus service {old} lost")
                 events.emit(f"service:lost:{old}")
 
+    def export_object(self, path: str, obj):
+        """Export the object to D-Bus."""
+        handle = self.manager.export_with_manager(path, obj)
+        self.manager_export_handles[obj] = handle
+
+    def remove_object(self, obj):
+        """Remove the object from D-Bus."""
+        handle = self.manager_export_handles.pop(obj)
+        handle.stop()
+
     async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self, id, address)
         logger.info(f"Adding {adapter}")
-        self.manager.export_with_manager(adapter.get_object_path(), adapter)
+        self.export_object(adapter.get_object_path(), adapter)
         self.adapters[id] = adapter
         if self.adapter_auto_enable:
             await adapter.Powered.set_async(True)
@@ -65,7 +78,7 @@ class BluezMockService:
         logger.info(f"Removing {adapter}")
         for device in list(adapter.devices.values()):
             await adapter.del_device(device)
-        self.manager.remove_managed_object(adapter)
+        self.remove_object(adapter)
         await adapter.cleanup()
 
     def create_discovering_task(self, id: int):

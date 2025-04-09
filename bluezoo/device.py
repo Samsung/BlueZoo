@@ -131,8 +131,7 @@ class Device(DeviceInterface):
                     if isinstance(obj, GattDescriptorClient):
                         link = GattDescriptorClientLink(obj, links[obj.Characteristic.get()])
                     # Export the link with the manager.
-                    self.peer_adapter.mock.manager.export_with_manager(
-                        link.get_object_path(), link)
+                    self.peer_adapter.mock.export_object(link.get_object_path(), link)
                     self.services[link.get_object_path()] = link
                     links[obj_path] = link
 
