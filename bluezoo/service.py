@@ -9,6 +9,7 @@ from sdbus import DbusObjectManagerInterfaceAsync
 from sdbus_async.dbus_daemon import FreedesktopDbus
 
 from .adapter import Adapter
+from .bluezoo import BlueZooController
 from .controller import Controller
 from .device import Device
 from .utils import BluetoothUUID
@@ -50,6 +51,10 @@ class BluezMockService:
 
         # Event emitter engine.
         self.events = EventEmitter()
+
+        # Register dedicated BlueZoo controller interface.
+        self.bluezoo = BlueZooController(self)
+        self.bluezoo.export_to_dbus("/org/bluezoo")
 
         self.manager = DbusObjectManagerInterfaceAsync()
         self.manager.export_to_dbus("/")

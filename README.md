@@ -57,7 +57,33 @@ the local bus.
            Discovering: no
    ```
 
-## Interfaces
+## BlueZoo Manager Interface
+
+BlueZoo provides a D-Bus interface for managing the mock service. The manager
+interface is available at `/org/bluezoo`. It allows to dynamically create and
+destroy adapters.
+
+Remove adapter `hci0`:
+
+```sh
+gdbus call --system \
+    --dest org.bluez \
+    --object-path /org/bluezoo \
+    --method org.bluezoo.Manager1.RemoveAdapter
+    0
+```
+
+Add adapter `hci0` with address `00:00:00:11:11:11`:
+
+```sh
+gdbus call --system \
+    --dest org.bluez \
+    --object-path /org/bluezoo \
+    --method org.bluezoo.Manager1.AddAdapter
+    0 '00:00:00:11:11:11'
+```
+
+## BlueZ Interfaces
 
 | Name                                   | Supported | Notes |
 | :---                                   | :-------: | :---  |
