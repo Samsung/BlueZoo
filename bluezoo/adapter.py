@@ -25,7 +25,7 @@ TEST_NAMES = (
 )
 
 
-class Adapter(AdapterInterface, LEAdvertisingManager, GattManager):
+class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
 
     def __init__(self, controller, id: int, address: str):
         self.controller = controller

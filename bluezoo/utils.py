@@ -9,8 +9,8 @@ from enum import IntFlag
 from functools import wraps
 
 import sdbus
-from sdbus.dbus_proxy_async_property import (DbusPropertyAsync, DbusPropertyAsyncLocalBind,
-                                             DbusPropertyAsyncProxyBind, DbusRemoteObjectMeta)
+from sdbus.dbus_proxy_async_property import (DbusLocalPropertyAsync, DbusPropertyAsync,
+                                             DbusProxyPropertyAsync, DbusRemoteObjectMeta)
 from sdbus.utils import parse_properties_changed
 
 
@@ -30,7 +30,7 @@ class NoneTask:
         return self._cancelled
 
 
-class DBusPropertyAsyncProxyBindWithCache(DbusPropertyAsyncProxyBind):
+class DBusPropertyAsyncProxyBindWithCache(DbusProxyPropertyAsync):
 
     def __init__(self, dbus_property, local_object, proxy_meta):
         super().__init__(dbus_property, proxy_meta)
@@ -62,7 +62,7 @@ def DbusPropertyAsync__get__(self, obj, obj_class):
     if isinstance(dbus_meta, DbusRemoteObjectMeta):
         return DBusPropertyAsyncProxyBindWithCache(self, obj, dbus_meta)
     else:
-        return DbusPropertyAsyncLocalBind(self, obj)
+        return DbusLocalPropertyAsync(self, obj)
 
 
 # Monkey-patch the library to support property caching.
