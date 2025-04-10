@@ -73,16 +73,16 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
 
-        # Start a private D-Bus session and get the address
+        # Start a private D-Bus session and get the address.
         self._bus = await asyncio.create_subprocess_exec(
             'dbus-daemon', '--session', '--print-address',
             stdout=asyncio.subprocess.PIPE)
         address = await self._bus.stdout.readline()
 
-        # Update environment with D-Bus address
+        # Update environment with D-Bus address.
         os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = address.strip().decode('utf-8')
 
-        # Start mock with two adapters
+        # Start mock with two adapters.
         self._mock = await asyncio.create_subprocess_exec(
             "bluezoo",
             "--verbose",

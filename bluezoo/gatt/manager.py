@@ -29,7 +29,7 @@ class GattManager(GattManagerInterface):
         logging.info(f"Removing GATT application {app.get_object_path()}")
         app.obj_removed_task.cancel()
         self.service.on_client_lost_remove(app.get_client(), app.on_client_lost)
-        self.gatt_apps.pop(app.get_destination())
+        self.gatt_apps.pop((app.get_client(), app.get_object_path()))
         await self.update_uuids()
 
     def get_gatt_registered_primary_services(self) -> Iterable[BluetoothUUID]:

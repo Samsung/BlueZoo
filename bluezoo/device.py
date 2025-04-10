@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import sdbus
 
@@ -79,7 +79,7 @@ class Device(DeviceInterface):
         return getattr(self, "name__", self.name_)
 
     @name.setter
-    def name_setter(self, value):
+    def name(self, value):
         self.name__ = value
 
     async def properties_sync(self, device):
@@ -103,7 +103,7 @@ class Device(DeviceInterface):
         # our adapter is trusted on the peer adapter.
         return self.is_br_edr and not self.peer_device.trusted
 
-    async def connect(self, uuid: str = None) -> None:
+    async def connect(self, uuid: Optional[str] = None) -> None:
 
         async def task():
             # Use the peer's adapter to connect with this device.
@@ -147,7 +147,7 @@ class Device(DeviceInterface):
         except asyncio.TimeoutError:
             logging.info(f"Connecting with {self} timed out")
 
-    async def disconnect(self, uuid: str = None) -> None:
+    async def disconnect(self, uuid: Optional[str] = None) -> None:
         self.connecting_task.cancel()
         logging.info(f"Disconnecting {self}")
         await self.peer_device.Connected.set_async(False)

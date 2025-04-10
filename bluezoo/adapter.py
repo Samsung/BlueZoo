@@ -46,15 +46,15 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         self.pairable_task = NoneTask()
         self.discovering = False
         self.discovering_task = NoneTask()
-        self.uuids = []
+        self.uuids: list[str] = []
 
-        self.scan_filter_uuids = []
+        self.scan_filter_uuids: list[str] = []
         self.scan_filter_transport = "auto"
         self.scan_filter_duplicate = False
         self.scan_filter_discoverable = False
         self.scan_filter_pattern = None
 
-        self.devices = {}
+        self.devices: dict[str, Device] = {}
 
     def __str__(self):
         return f"adapter[{self.id}][{self.address}]"
@@ -67,7 +67,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         return getattr(self, "name__", self.name_)
 
     @name.setter
-    def name_setter(self, value):
+    def name(self, value):
         self.name__ = value
 
     async def update_uuids(self):
@@ -179,7 +179,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
-    def PowerState(self) -> bool:
+    def PowerState(self) -> str:
         return "on" if self.powered else "off"
 
     @PowerState.setter_private

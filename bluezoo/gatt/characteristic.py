@@ -4,7 +4,7 @@
 import asyncio
 import logging
 import os
-from typing import Any
+from typing import Any, BinaryIO, Optional
 
 import sdbus
 
@@ -32,8 +32,8 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         self.mtu = self.client.MTU.get(512)
         self.link = "LE"
 
-        self.f_read = None
-        self.f_write = None
+        self.f_read: Optional[BinaryIO] = None
+        self.f_write: Optional[BinaryIO] = None
 
     def __str__(self):
         return self.client.get_object_path()
@@ -69,7 +69,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
             # avoid closing the file descriptor by the D-Bus library.
             self.f_write = open(os.dup(fd), "wb", buffering=0)
             self.f_write.write(value)
-        else:
+        elif self.f_write is not None:
             # Write to the previously acquired file descriptor.
             self.f_write.write(value)
 

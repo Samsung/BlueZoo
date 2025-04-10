@@ -43,7 +43,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         logging.info(f"Removing {adv}")
 
         self.service.on_client_lost_remove(adv.get_client(), adv.on_client_lost)
-        self.advertisements.pop(adv.get_destination())
+        self.advertisements.pop((adv.get_client(), adv.get_object_path()))
 
         await self.ActiveInstances.set_async(len(self.advertisements))
         await self.SupportedInstances.set_async(self.__supported_instances)

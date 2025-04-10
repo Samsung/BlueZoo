@@ -9,6 +9,7 @@ from enum import IntFlag
 from functools import wraps
 
 import sdbus
+from sdbus.dbus_proxy_async_interfaces import DbusInterfaceBaseAsync
 from sdbus.dbus_proxy_async_property import (DbusLocalPropertyAsync, DbusPropertyAsync,
                                              DbusProxyPropertyAsync, DbusRemoteObjectMeta)
 from sdbus.utils import parse_properties_changed
@@ -69,7 +70,7 @@ def DbusPropertyAsync__get__(self, obj, obj_class):
 DbusPropertyAsync.__get__ = DbusPropertyAsync__get__
 
 
-class DBusClientMixin:
+class DBusClientMixin(DbusInterfaceBaseAsync):
     """Helper class for D-Bus client objects."""
 
     def __init__(self, service: str, path: str):
@@ -96,9 +97,6 @@ class DBusClientMixin:
 
     def get_client(self) -> str:
         return self._dbus.service_name
-
-    def get_destination(self) -> str:
-        return (self.get_client(), self.get_object_path())
 
     def get_object_path(self) -> str:
         return self._dbus.object_path
