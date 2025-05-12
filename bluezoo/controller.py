@@ -12,7 +12,7 @@ from .interfaces.AgentManager import AgentManagerInterface
 from .utils import DBusClientMixin, dbus_method_async_except_logging
 
 
-class Agent(DBusClientMixin, AgentInterface):
+class AgentClient(DBusClientMixin, AgentInterface):
     """D-Bus client for the Agent interface."""
 
     def __init__(self, service, path, capability: str):
@@ -37,7 +37,7 @@ class Controller(AgentManagerInterface):
     def get_object_path(self):
         return "/org/bluez"
 
-    async def __del_agent(self, agent: Agent):
+    async def __del_agent(self, agent: AgentClient):
         logging.info(f"Unregistering {agent}")
 
         if agent == self.agent:
@@ -65,7 +65,7 @@ class Controller(AgentManagerInterface):
         for sender in self.agents:
             raise DBusBluezAlreadyExistsError("Already Exists")
 
-        agent = Agent(sender, path, capability)
+        agent = AgentClient(sender, path, capability)
         logging.info(f"Registering {agent}")
 
         if self.agent is None:

@@ -337,6 +337,11 @@ class Device(DeviceInterface):
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
+    def CablePairing(self) -> bool:
+        return False
+
+    @sdbus.dbus_property_async_override()
+    @dbus_property_async_except_logging
     def Modalias(self) -> str:
         return "usb:v1D6Bp0246d0537"
 

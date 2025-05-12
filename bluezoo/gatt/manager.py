@@ -9,7 +9,7 @@ import sdbus
 
 from ..interfaces.GattManager import GattManagerInterface
 from ..utils import BluetoothUUID, dbus_method_async_except_logging
-from .application import GattApplication
+from .application import GattApplicationClient
 from .characteristic import GattCharacteristicClient
 from .descriptor import GattDescriptorClient
 from .service import GattServiceClient
@@ -25,7 +25,7 @@ class GattManager(GattManagerInterface):
         self.gatt_handles = set()
         self.gatt_handle_counter = 0
 
-    async def __del_gatt_application(self, app: GattApplication) -> None:
+    async def __del_gatt_application(self, app: GattApplicationClient) -> None:
         logging.info(f"Removing GATT application {app.get_object_path()}")
         app.obj_removed_task.cancel()
         self.service.on_client_lost_remove(app.get_client(), app.on_client_lost)
@@ -46,7 +46,7 @@ class GattManager(GattManagerInterface):
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to register GATT application {application}")
 
-        app = GattApplication(sender, application, options)
+        app = GattApplicationClient(sender, application, options)
         await app.object_manager_setup_sync_task(
             (GattServiceClient, GattCharacteristicClient, GattDescriptorClient))
 

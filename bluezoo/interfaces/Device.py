@@ -189,6 +189,12 @@ class DeviceInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
+        property_signature="b",
+        flags=sdbus.DbusPropertyEmitsChangeFlag)
+    def CablePairing(self) -> bool:
+        raise NotImplementedError
+
+    @sdbus.dbus_property_async(
         property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Modalias(self) -> str:

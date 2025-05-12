@@ -10,7 +10,7 @@ from sdbus.utils import parse_get_managed_objects
 from ..utils import DBusClientMixin
 
 
-class GattApplication(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsync):
+class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsync):
     """D-Bus client for registered GATT application."""
 
     def __init__(self, service, path, options):

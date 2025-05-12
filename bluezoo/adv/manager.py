@@ -13,7 +13,7 @@ from ..utils import (DBusClientMixin, dbus_method_async_except_logging,
                      dbus_property_async_except_logging)
 
 
-class LEAdvertisement(DBusClientMixin, LEAdvertisementInterface):
+class LEAdvertisementClient(DBusClientMixin, LEAdvertisementInterface):
     """D-Bus client for LE advertisement."""
 
     def __init__(self, service, path, options):
@@ -39,7 +39,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     def __supported_instances(self) -> int:
         return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
 
-    async def __del_advertisement(self, adv: LEAdvertisement):
+    async def __del_advertisement(self, adv: LEAdvertisementClient):
         logging.info(f"Removing {adv}")
 
         self.service.on_client_lost_remove(adv.get_client(), adv.on_client_lost)
@@ -58,7 +58,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         if not self.__supported_instances:
             raise DBusBluezNotPermittedError("Not Permitted")
 
-        adv = LEAdvertisement(sender, path, options)
+        adv = LEAdvertisementClient(sender, path, options)
         await adv.properties_setup_sync_task()
 
         logging.info(f"Registering {adv}")
