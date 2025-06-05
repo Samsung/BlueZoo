@@ -11,12 +11,12 @@ import sdbus
 
 class AdapterInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name="org.bluez.Adapter1"):
+        interface_name='org.bluez.Adapter1'):
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="",
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def StartDiscovery(
@@ -25,9 +25,9 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="",
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def StopDiscovery(
@@ -36,9 +36,9 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="o",
-        input_args_names=["device"],
-        result_signature="",
+        input_signature='o',
+        input_args_names=['device'],
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RemoveDevice(
@@ -48,9 +48,9 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="a{sv}",
-        input_args_names=["filter"],
-        result_signature="",
+        input_signature='a{sv}',
+        input_args_names=['filter'],
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def SetDiscoveryFilter(
@@ -60,10 +60,10 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="as",
-        result_args_names=["r0"],
+        result_signature='as',
+        result_args_names=['r0'],
         flags=sdbus.DbusUnprivilegedFlag)
     async def GetDiscoveryFilters(
         self
@@ -71,10 +71,10 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="a{sv}",
-        input_args_names=["properties"],
-        result_signature="o",
-        result_args_names=["r0"],
+        input_signature='a{sv}',
+        input_args_names=['properties'],
+        result_signature='o',
+        result_args_names=['r0'],
         flags=sdbus.DbusUnprivilegedFlag)
     async def ConnectDevice(
         self,
@@ -83,115 +83,115 @@ class AdapterInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Address(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def AddressType(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Name(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Alias(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="u",
+        property_signature='u',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Class(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Connectable(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Powered(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def PowerState(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Discoverable(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Pairable(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="u",
+        property_signature='u',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def PairableTimeout(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="u",
+        property_signature='u',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def DiscoverableTimeout(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Discovering(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def UUIDs(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Modalias(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Roles(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ExperimentalFeatures(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Manufacturer(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="y",
+        property_signature='y',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Version(self) -> int:
         raise NotImplementedError

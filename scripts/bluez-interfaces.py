@@ -4,40 +4,176 @@
 
 import re
 from argparse import ArgumentParser, FileType
+from contextlib import suppress
+from dataclasses import dataclass, field
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import pyparsing as pp
 
-ARRAY = pp.Forward()
-TYPE = (ARRAY | pp.Word(pp.alphas, pp.alphas + pp.nums + "_"))("type")
-IDENTIFIER = pp.Word(pp.alphas, pp.alphas + pp.nums + "_")("name")
-ARRAY << pp.Group(
-    pp.Keyword("array")
-    + pp.Literal("{").suppress()
-    + pp.delimitedList(pp.Group(TYPE + pp.Optional(IDENTIFIER)))("elements")
-    + pp.Literal("}").suppress()
-)
-PARAM = pp.Group(TYPE + pp.Optional(IDENTIFIER))("param")
-ANNOTATIONS = (
-    pp.Literal("[").suppress()
-    + pp.delimitedList(pp.Word(pp.alphas, pp.alphas + pp.nums + "-"))
-    + pp.Literal("]").suppress()
-)("annotations")
-INTERFACE = pp.Word(pp.alphas, pp.alphas + pp.nums + ".")("name") + pp.Optional(
-    ANNOTATIONS
-)
-METHOD = (
-    pp.Group(pp.delimitedList(TYPE))("returns")
-    + IDENTIFIER
-    + pp.Literal("(").suppress()
-    + pp.Optional(pp.Group(pp.delimitedList(PARAM))("args"))
-    + pp.Literal(")").suppress()
-    + pp.Optional(ANNOTATIONS)
-)
-PROPERTY = TYPE + IDENTIFIER + pp.Optional(ANNOTATIONS)
+
+@dataclass
+class Method:
+    name: str
+    returns: list[str]
+    parameters: list[tuple[str, str | pp.ParseResults]]
+    annotations: set[str]
+    description: str = ""
+    notes: str = ""
 
 
+@dataclass
+class Property:
+    name: str
+    type: str | pp.ParseResults
+    annotations: set[str]
+    description: str = ""
+    notes: str = ""
+
+
+@dataclass
+class Interface:
+    name: str
+    annotations: set[str]
+    methods: list[Method] = field(default_factory=list)
+    signals: list[Method] = field(default_factory=list)
+    properties: list[Property] = field(default_factory=list)
+    notes: str = ""
+
+
+class BluezDocParser:
+    """BlueZ documentation D-Bus API parser."""
+
+    IDENTIFIER = pp.Word(pp.alphas, pp.alphas + pp.nums + "_")("name")
+
+    ARRAY = pp.Forward()
+    TYPE = (ARRAY | pp.Word(pp.alphas, pp.alphanums))("type")
+
+    PARAM = pp.Group(TYPE + pp.Optional(IDENTIFIER))("param")
+
+    ARRAY <<= pp.Group(
+        pp.Keyword("array")
+        + pp.Literal("{").suppress()
+        + pp.delimitedList(PARAM)("elements")
+        + pp.Literal("}").suppress()
+    )
+
+    ANNOTATIONS = (
+        pp.Literal("[").suppress()
+        + pp.delimitedList(
+            # Match annotation keywords like "experimental", "ISO only", etc.
+            pp.OneOrMore(pp.Word(pp.alphanums + "-/")).setParseAction(" ".join))
+        + pp.Literal("]").suppress()
+    )("annotations")
+
+    NOTES = pp.Group(
+        pp.Literal("(").suppress()
+        + pp.CharsNotIn("()")
+        + pp.Literal(")").suppress()
+    )("notes")
+
+    INTERFACE = (
+        pp.Word(pp.alphas, pp.alphas + pp.nums + ".")("name")
+        + pp.Optional(ANNOTATIONS)
+    )
+
+    METHOD = (
+        pp.Group(pp.delimitedList(TYPE))("returns")
+        + IDENTIFIER
+        + pp.Literal("(").suppress()
+        + pp.Optional(pp.Group(pp.delimitedList(PARAM))("parameters"))
+        + pp.Literal(")").suppress()
+        + pp.Optional(ANNOTATIONS)
+        + pp.Optional(NOTES)
+    )
+
+    PROPERTY = (
+        TYPE
+        + IDENTIFIER
+        + pp.Optional(ANNOTATIONS)
+        + pp.Optional(NOTES)
+    )
+
+    @classmethod
+    def parseAnnotations(cls, annotations):
+        """Convert parsed annotations to a set of annotation tags."""
+        tags = set()
+        for token in annotations:
+            token = token.lower()
+            if token == "required":
+                # Everything is required by default, so we can skip this.
+                continue
+            elif token in ("read-only", "readonly"):
+                tags.add("read")
+            elif token in ("readwrite", "read-write", "read/write"):
+                tags.update(("read", "write"))
+            elif token in ("writeonly", "write-only"):
+                tags.add("write")
+            else:
+                tags.add(token)
+        return tags
+
+    @classmethod
+    def parseInterface(cls, string: str):
+        ast = cls.INTERFACE.parseString(string, parseAll=True)
+        return Interface(
+            name=str(ast.name),
+            annotations=cls.parseAnnotations(ast.annotations),
+        )
+
+    @classmethod
+    def parseMethod(cls, string: str):
+        ast = cls.METHOD.parseString(string, parseAll=True)
+        return Method(
+            name=str(ast.name),
+            returns=[x for x in ast.returns if x],
+            parameters=[(x.name, x.type) for x in ast.parameters],
+            annotations=cls.parseAnnotations(ast.annotations),
+        )
+
+    @classmethod
+    def parseProperty(cls, string: str):
+        # TODO: Enable parseAll=True after fixing the documentation.
+        ast = cls.PROPERTY.parseString(string, parseAll=False)
+        return Property(
+            name=str(ast.name),
+            type=ast.type,
+            annotations=cls.parseAnnotations(ast.annotations),
+        )
+
+
+def type2python(t):
+    """Convert a parsed type to a Python type."""
+    if t == "void":
+        return "None"
+    if t in ["bool", "boolean"]:
+        return "bool"
+    if t in ["signature", "object", "string"]:
+        return "str"
+    if t in ["fd", "byte", "int16", "int32", "int64", "uint16", "uint32", "uint64"]:
+        return "int"
+    if t == "double":
+        return "float"
+    if t == "dict":
+        return "dict[str, tuple[str, object]]"
+    if t == "variant":
+        return "tuple[str, object]"
+    if t == "properties":
+        return "dict[str, dict[str, object]]"
+    if t == "objects":
+        # TODO: Check if this is not a typo in the documentation.
+        return "dict[str, dict[str, object]]"
+    if t[0] == "array":
+        if len(t.elements) == 1 and t.elements[0].type == "byte":
+            return "bytes"
+        types = [type2python(e.type) for e in t.elements]
+        if len(types) == 1:
+            return f"list[{types[0]}]"
+        return f"tuple[{''.join(types)}]"
+    raise ValueError(f"Unknown type: {t}")
+
+
+# Types used in BlueZ documentation and their D-Bus signatures.
 TYPES = {
     "bool": "b",
     "boolean": "b",
@@ -67,32 +203,13 @@ def type2signature(t):
         return TYPES[t]
     if t[0] == "array":
         types = [type2signature(e.type) for e in t.elements]
-        return f"a{''.join(types)}"
+        if len(types) == 1:
+            return f"a{types[0]}"
+        return f"a({''.join(types)})"
     raise ValueError(f"Unknown type: {t}")
 
 
-def signature2type(sig):
-    if sig == "b":
-        return "bool"
-    if sig == "d":
-        return "float"
-    if sig in ["g", "o", "s"]:
-        return "str"
-    if sig in ["h", "i", "n", "q", "t", "u", "x", "y"]:
-        return "int"
-    if sig == "v":
-        return "tuple[str, object]"
-    if sig.startswith("ay"):
-        return "bytes"
-    if sig.startswith("a{"):
-        key = signature2type(sig[2])
-        value = signature2type(sig[3:-1])
-        return f"dict[{key}, {value}]"
-    if sig.startswith("a"):
-        return f"list[{signature2type(sig[1:])}]"
-    return None
-
-
+# Annotations used in BlueZ documentation and their D-Bus equivalents.
 ANNOTATIONS = {
     "deprecated": "org.freedesktop.DBus.Deprecated",
     "experimental": "org.freedesktop.DBus.Experimental",
@@ -100,21 +217,24 @@ ANNOTATIONS = {
     "optional": "org.freedesktop.DBus.Optional",
     "adapter-only": "org.bluez.AdapterOnly",
     "device-only": "org.bluez.DeviceOnly",
+    "iso only": "org.bluez.ISOOnly",
+    "cis only": "org.bluez.CISOnly",
+    "bis only": "org.bluez.BISOnly",
 }
 
 
-def annotate(element: ET.Element, annotation):
+def annotate(element: ET.Element, annotations: set[str]):
     """Annotate an XML element with annotations."""
-    annotation = annotation.lower()
-    if annotation in ("readonly", "read-only"):
-        element.set("access", "read")
-    elif annotation in ("readwrite", "read-write"):
+    if set(("read", "write")) <= annotations:
         element.set("access", "readwrite")
-    elif annotation in ("writeonly", "write-only"):
+    elif "read" in annotations:
+        element.set("access", "read")
+    elif "write" in annotations:
         element.set("access", "write")
-    else:
+    for tag in annotations - set(("read", "write")):
         ET.SubElement(element, "annotation",
-                      name=ANNOTATIONS[annotation], value="true")
+                      name=ANNOTATIONS[tag],
+                      value="true")
 
 
 def comment(parent: ET.Element, text: str):
@@ -139,6 +259,7 @@ args = parser.parse_args()
 
 re_section_interface = re.compile(r"^Interface$")
 re_section_methods = re.compile(r"^Methods$")
+re_section_signals = re.compile(r"^Signals$")
 re_section_properties = re.compile(r"^Properties$")
 
 re_service = re.compile(r":Service:\s+(.+)")
@@ -155,15 +276,9 @@ for source in args.sources:
     with source as f:
         lines = f.readlines()
 
-    section = None
     paragraph = 0
-    interface = ET.Element("interface")
-    interfaces.append(interface)
-
-    methods = set()
-    properties = set()
-
-    for line in lines:
+    section = None
+    for i, line in enumerate(lines):
         if not line.strip():
             paragraph += 1
             continue
@@ -172,56 +287,54 @@ for source in args.sources:
             section = "interface"
         elif m := re_section_methods.match(line):
             section = "methods"
+        elif m := re_section_signals.match(line):
+            section = "signals"
         elif m := re_section_properties.match(line):
             section = "properties"
+
+        header = False
+        # Check if the current line is marked as a header.
+        with suppress(IndexError):
+            header = lines[i + 1].startswith("````")
 
         if section == "interface":
             if m := re_service.match(line):
                 service = m.group(1)
             if m := re_interface.match(line):
-                ast = INTERFACE.parseString(m.group(1))
-                interface.set("name", ast.name)
-                for x in ast.annotations:
-                    annotate(interface, x)
+                interface = BluezDocParser.parseInterface(m.group(1))
             if m := re_object_path.match(line):
                 object_path = m.group(1)
         elif section == "methods":
-            if re_method.match(line):
-                ast = METHOD.parseString(line)
-                if ast.name in methods:
-                    continue
-                paragraph = 0
-                methods.add(ast.name)
-                elem = ET.SubElement(interface, "method", name=ast.name)
-                for i, t in enumerate(ast.returns):
-                    if s := type2signature(t):
-                        ET.SubElement(elem, "arg", direction="out",
-                                      name=f"r{i}", type=s)
-                for x in ast.args:
-                    if s := type2signature(x.type):
-                        ET.SubElement(elem, "arg", direction="in",
-                                      name=x.name, type=s)
-                for x in ast.annotations:
-                    annotate(elem, x)
+            if header and re_method.match(line):
+                method = BluezDocParser.parseMethod(line)
+                if method.name not in [x.name for x in interface.methods]:
+                    interface.methods.append(method)
+                    paragraph = 0
             elif paragraph == 1:
-                comment(interface, line)
+                method.description += line
+        elif section == "signals":
+            # Signals are similar to methods but without return values.
+            if header and re_method.match(line):
+                signal = BluezDocParser.parseMethod(line)
+                if signal.name not in [x.name for x in interface.signals]:
+                    interface.signals.append(signal)
+                    paragraph = 0
+            elif paragraph == 1:
+                signal.description += line
         elif section == "properties":
-            if re_property.match(line):
-                ast = PROPERTY.parseString(line)
-                if ast.name in properties:
-                    continue
-                paragraph = 0
-                properties.add(ast.name)
-                elem = ET.SubElement(interface, "property", name=ast.name,
-                                     type=type2signature(ast.type))
-                for x in ast.annotations:
-                    annotate(elem, x)
+            if header and re_property.match(line):
+                prop = BluezDocParser.parseProperty(line)
+                if prop.name not in [x.name for x in interface.properties]:
+                    interface.properties.append(prop)
+                    paragraph = 0
             elif paragraph == 1:
-                comment(interface, line)
+                prop.description += line
+
+    interfaces.append(interface)
 
 if args.list:
-    for interface in interfaces:
-        print(interface.get("name"))
+    for iface in interfaces:
+        print(iface.name)
     exit()
 
 TEMPLATE_HEADER = """
@@ -239,15 +352,15 @@ import sdbus
 TEMPLATE_CLASS = """
 class {name}Interface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name="{interface}"):
+        interface_name='{interface}'):
 """
 
 TEMPLATE_METHOD = """
     @sdbus.dbus_method_async(
-        input_signature="{input_signature}",
-        input_args_names=[{input_args_names}],
-        result_signature="{result_signature}",
-        result_args_names=[{result_args_names}],
+        input_signature='{input_signature}',
+        input_args_names={input_arguments},
+        result_signature='{result_signature}',
+        result_args_names={result_arguments},
         flags=sdbus.DbusUnprivilegedFlag)
     async def {name}(
         {params}
@@ -255,71 +368,142 @@ TEMPLATE_METHOD = """
         raise NotImplementedError
 """
 
+TEMPLATE_SIGNAL = """
+    @sdbus.dbus_signal_async(
+        signal_signature='{signature}',
+        signal_args_names={arguments})
+    def {name}(self) -> {type}:
+        raise NotImplementedError
+"""
+
 TEMPLATE_PROPERTY = """
     @sdbus.dbus_property_async(
-        property_signature="{signature}",
+        property_signature='{signature}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def {name}(self) -> {type}:
         raise NotImplementedError
 """
 
-for interface in interfaces:
+
+def save_python(name: str, interface: Interface):
+    """Generate a Python file for the given interface."""
+
+    def returns2type(returns):
+        """Return the typing for the given returns."""
+        if len(returns) == 1:
+            return type2python(returns[0])
+        return f"tuple[{', '.join(map(type2python, returns))}]"
+
+    file = args.output_dir / f"{name}.py"
     if args.verbose:
-        print(f"Generating {interface.get('name')}")
-
-    if args.save_xml:
-        root = ET.Element("node")
-        root.set("xmlns:doc", "http://www.freedesktop.org/dbus/1.0/doc.dtd")
-        root.append(interface)
-        ET.indent(root, space="\t", level=0)
-        file = args.output_dir / f"{interface.get('name')}.xml"
-        ET.ElementTree(root).write(str(file))
-
-    # Do not include namespaces and version in the interface name.
-    name = interface.get("name").removeprefix("org.bluez.").rstrip("1")
-    # Remove dot and capitalize the first letter for OBEX interfaces.
-    name = name[0].upper() + name[1:].replace(".", "")
-    with open(args.output_dir / f"{name}.py", "w") as f:
+        print(f"Generating {file}")
+    with open(file, "w") as f:
         f.write(TEMPLATE_HEADER.lstrip())
 
         f.write("\n")
         f.write(TEMPLATE_CLASS.format(
             name=name,
-            interface=interface.get("name")))
+            interface=interface.name))
 
-        for method in interface.findall("method"):
-            args_in = list(method.findall("arg[@direction='in']"))
-            args_in_signature = "".join([x.get("type") for x in args_in])
-            args_in_names = ", ".join([f'"{x.get("name")}"' for x in args_in])
-            args_out = list(method.findall("arg[@direction='out']"))
-            args_out_signature = "".join([x.get("type") for x in args_out])
-            args_out_names = ", ".join([f'"{x.get("name")}"' for x in args_out])
-
+        for method in interface.methods:
             params = ["self"]
-            params.extend([
-                f"{x.get("name")}: {signature2type(x.get("type"))}"
-                for x in args_in])
-
-            returns = [
-                signature2type(x.get("type"))
-                for x in args_out]
-            if len(returns) > 1:
-                returns = [f"tuple[{', '.join(returns)}]"]
-            returns = returns[0] if returns else "None"
-
+            arguments = []
+            for n, t in method.parameters:
+                if s := type2signature(t):
+                    params.append(f"{n}: {type2python(t)}")
+                    arguments.append((n, s))
+            results = []
+            for t in method.returns:
+                if s := type2signature(t):
+                    results.append(s)
             f.write(TEMPLATE_METHOD.format(
-                name=method.get("name"),
+                name=method.name,
                 params=",\n        ".join(params),
-                returns=returns,
-                input_signature=args_in_signature,
-                input_args_names=args_in_names,
-                result_signature=args_out_signature,
-                result_args_names=args_out_names,
+                returns=returns2type(method.returns),
+                input_signature="".join([x[1] for x in arguments]),
+                input_arguments=repr([x[0] for x in arguments]),
+                result_signature="".join(results),
+                result_arguments=repr([f"r{i}" for i in range(len(results))]),
             ))
 
-        for property in interface.findall("property"):
-            f.write(TEMPLATE_PROPERTY.format(
-                name=property.get("name"),
-                type=signature2type(property.get("type")),
-                signature=property.get("type"),
+        for signal in interface.signals:
+            f.write(TEMPLATE_SIGNAL.format(
+                name=signal.name,
+                type=returns2type([x[1] for x in signal.parameters]),
+                signature="".join([type2signature(x[1]) for x in signal.parameters]),
+                arguments=repr([x[0] for x in signal.parameters]),
             ))
+
+        for property in interface.properties:
+            f.write(TEMPLATE_PROPERTY.format(
+                name=property.name,
+                type=type2python(property.type),
+                signature=type2signature(property.type),
+            ))
+
+
+def save_xml(name: str, interface: Interface):
+    """Generate an XML file for the given interface."""
+
+    root = ET.Element("node")
+    root.set("xmlns:doc", "http://www.freedesktop.org/dbus/1.0/doc.dtd")
+
+    iface = ET.SubElement(root, "interface", name=interface.name)
+    annotate(iface, interface.annotations)
+
+    for method in interface.methods:
+        elem = ET.SubElement(iface, "method", name=method.name)
+        for i, t in enumerate(method.returns):
+            if s := type2signature(t):
+                ET.SubElement(elem, "arg", direction="out", name=f"r{i}", type=s)
+        for n, t in method.parameters:
+            if s := type2signature(t):
+                ET.SubElement(elem, "arg", direction="in", name=n, type=s)
+        annotate(elem, method.annotations)
+        comment(iface, method.description)
+
+    for signal in interface.signals:
+        elem = ET.SubElement(iface, "signal", name=signal.name)
+        for n, t in signal.parameters:
+            ET.SubElement(elem, "arg", name=n, type=type2signature(t))
+        annotate(elem, signal.annotations)
+        comment(iface, signal.description)
+
+    for prop in interface.properties:
+        elem = ET.SubElement(iface, "property", name=prop.name,
+                             type=type2signature(prop.type))
+        annotate(elem, prop.annotations)
+        comment(iface, prop.description)
+
+    ET.indent(root, space="\t", level=0)
+    file = args.output_dir / f"{name}.xml"
+    if args.verbose:
+        print(f"Generating {file}")
+    ET.ElementTree(root).write(str(file))
+
+
+def save(name: str, interface: Interface):
+    if args.save_xml:
+        save_xml(name, interface)
+    save_python(name, interface)
+
+
+for iface in interfaces:
+    # Do not include namespaces and version in the interface name.
+    name = iface.name.removeprefix("org.bluez.").rstrip("1")
+    # Remove dot and capitalize the first letter for OBEX interfaces.
+    name = name[0].upper() + name[1:].replace(".", "")
+
+    # Split interface if some properties are annotated with adapter-only and
+    # device-only. Example of such interface is org.bluez.AdminPolicyStatus
+    # which is documented only once but in fact contains two different
+    # functional interfaces.
+    props_adapter = [x for x in iface.properties if "device-only" not in x.annotations]
+    props_device = [x for x in iface.properties if "adapter-only" not in x.annotations]
+    if props_adapter == props_device:
+        save(name, iface)
+    else:
+        iface.properties = props_adapter
+        save(f"Adapter{name}", iface)
+        iface.properties = props_device
+        save(f"Device{name}", iface)

@@ -11,13 +11,13 @@ import sdbus
 
 class GattCharacteristicInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name="org.bluez.GattCharacteristic1"):
+        interface_name='org.bluez.GattCharacteristic1'):
 
     @sdbus.dbus_method_async(
-        input_signature="a{sv}",
-        input_args_names=["options"],
-        result_signature="ay",
-        result_args_names=["r0"],
+        input_signature='a{sv}',
+        input_args_names=['options'],
+        result_signature='ay',
+        result_args_names=['r0'],
         flags=sdbus.DbusUnprivilegedFlag)
     async def ReadValue(
         self,
@@ -26,9 +26,9 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="aya{sv}",
-        input_args_names=["value", "options"],
-        result_signature="",
+        input_signature='aya{sv}',
+        input_args_names=['value', 'options'],
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def WriteValue(
@@ -39,10 +39,10 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="a{sv}",
-        input_args_names=["options"],
-        result_signature="hq",
-        result_args_names=["r0", "r1"],
+        input_signature='a{sv}',
+        input_args_names=['options'],
+        result_signature='hq',
+        result_args_names=['r0', 'r1'],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AcquireWrite(
         self,
@@ -51,10 +51,10 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="a{sv}",
-        input_args_names=["options"],
-        result_signature="hq",
-        result_args_names=["r0", "r1"],
+        input_signature='a{sv}',
+        input_args_names=['options'],
+        result_signature='hq',
+        result_args_names=['r0', 'r1'],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AcquireNotify(
         self,
@@ -63,9 +63,9 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="",
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def StartNotify(
@@ -74,9 +74,9 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="",
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def StopNotify(
@@ -85,9 +85,9 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="",
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def Confirm(
@@ -96,55 +96,55 @@ class GattCharacteristicInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def UUID(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="o",
+        property_signature='o',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Service(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="ay",
+        property_signature='ay',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Value(self) -> bytes:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def WriteAcquired(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def NotifyAcquired(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Notifying(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Flags(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Handle(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def MTU(self) -> int:
         raise NotImplementedError

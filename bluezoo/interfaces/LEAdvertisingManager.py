@@ -11,12 +11,12 @@ import sdbus
 
 class LEAdvertisingManagerInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name="org.bluez.LEAdvertisingManager1"):
+        interface_name='org.bluez.LEAdvertisingManager1'):
 
     @sdbus.dbus_method_async(
-        input_signature="oa{sv}",
-        input_args_names=["advertisement", "options"],
-        result_signature="",
+        input_signature='oa{sv}',
+        input_args_names=['advertisement', 'options'],
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RegisterAdvertisement(
@@ -27,9 +27,9 @@ class LEAdvertisingManagerInterface(
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature="o",
-        input_args_names=["advertisement"],
-        result_signature="",
+        input_signature='o',
+        input_args_names=['advertisement'],
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def UnregisterAdvertisement(
@@ -39,37 +39,37 @@ class LEAdvertisingManagerInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="y",
+        property_signature='y',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ActiveInstances(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="y",
+        property_signature='y',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SupportedInstances(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SupportedIncludes(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SupportedSecondaryChannels(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SupportedCapabilities(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SupportedFeatures(self) -> list[str]:
         raise NotImplementedError

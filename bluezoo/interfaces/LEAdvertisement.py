@@ -11,12 +11,12 @@ import sdbus
 
 class LEAdvertisementInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name="org.bluez.LEAdvertisement1"):
+        interface_name='org.bluez.LEAdvertisement1'):
 
     @sdbus.dbus_method_async(
-        input_signature="",
+        input_signature='',
         input_args_names=[],
-        result_signature="",
+        result_signature='',
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def Release(
@@ -25,133 +25,133 @@ class LEAdvertisementInterface(
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Type(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ServiceUUIDs(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ManufacturerData(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SolicitUUIDs(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ServiceData(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Data(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ScanResponseServiceUUIDs(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ScanResponseManufacturerData(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ScanResponseSolicitUUIDs(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ScanResponseServiceData(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="a{sv}",
+        property_signature='a{sv}',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def ScanResponseData(self) -> dict[str, tuple[str, object]]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="b",
+        property_signature='b',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Discoverable(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def DiscoverableTimeout(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="as",
+        property_signature='as',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Includes(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def LocalName(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Appearance(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Duration(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="q",
+        property_signature='q',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Timeout(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="s",
+        property_signature='s',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def SecondaryChannel(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="u",
+        property_signature='u',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def MinInterval(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="u",
+        property_signature='u',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def MaxInterval(self) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature="n",
+        property_signature='n',
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def TxPower(self) -> int:
         raise NotImplementedError
