@@ -3,6 +3,7 @@
 
 import asyncio
 import logging
+from enum import StrEnum
 from typing import Any
 
 import sdbus
@@ -26,6 +27,13 @@ TEST_NAMES = (
 
 
 class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
+
+    class PowerStateValue(StrEnum):
+        On = "on"
+        Off = "off"
+        OffEnabling = "off-enabling"
+        OnDisabling = "on-disabling"
+        OffBlocked = "off-blocked"
 
     def __init__(self, controller, id: int, address: str):
         self.controller = controller
@@ -174,13 +182,26 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
 
     @Powered.setter
     def Powered_setter(self, value: bool):
-        asyncio.create_task(self.PowerState.set_async(value))
-        self.powered = value
+
+        async def off():
+            await self.PowerState.set_async(Adapter.PowerStateValue.OnDisabling)
+            await self.PowerState.set_async(Adapter.PowerStateValue.Off)
+            await self.__stop_discovering()
+
+        async def on():
+            await self.PowerState.set_async(Adapter.PowerStateValue.OffEnabling)
+            await self.PowerState.set_async(Adapter.PowerStateValue.On)
+
+        if self.powered != value:
+            asyncio.create_task(on() if value else off())
+            self.powered = value
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging
     def PowerState(self) -> str:
-        return "on" if self.powered else "off"
+        if self.powered:
+            return Adapter.PowerStateValue.On
+        return Adapter.PowerStateValue.Off
 
     @PowerState.setter_private
     def PowerState_setter(self, value: str):

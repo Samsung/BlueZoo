@@ -84,10 +84,11 @@ class BluezMockService:
 
     async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self.controller, id, address)
-        adapter.powered = self.adapter_auto_enable
         logging.info(f"Adding {adapter}")
         self.manager.export_with_manager(adapter.get_object_path(), adapter)
         self.adapters[id] = adapter
+        if self.adapter_auto_enable:
+            await adapter.Powered.set_async(True)
         return adapter
 
     async def del_adapter(self, id: int):
