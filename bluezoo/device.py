@@ -27,7 +27,7 @@ class Device(DeviceInterface):
         # The adapter to which this device is added.
         self.adapter = None
         # The device representing local adapter on the peer adapter.
-        self.peer_device: Device = None
+        self.peer: Device = None
 
         self.is_le = False
         self.is_br_edr = False
@@ -64,9 +64,9 @@ class Device(DeviceInterface):
     def __str__(self):
         return f"device[{self.address}]"
 
-    def setup_adapter(self, adapter):
+    def attach_to_adapter(self, adapter):
         """Set the adapter to which this device is added."""
-        self.peer_device = Device(adapter)
+        self.peer = Device(adapter)
         self.adapter = adapter
 
     def get_object_path(self):
@@ -101,7 +101,7 @@ class Device(DeviceInterface):
     def connect_check_authorization_required(self, uuid):
         # The connection is requested from our side, so we need to check if
         # our adapter is trusted on the peer adapter.
-        return self.is_br_edr and not self.peer_device.trusted
+        return self.is_br_edr and not self.peer.trusted
 
     async def connect(self, uuid: Optional[str] = None) -> None:
 
@@ -113,7 +113,7 @@ class Device(DeviceInterface):
                 await self.peer_adapter.controller.agent.RequestAuthorization(self.get_object_path())
 
             # Mark devices as connected.
-            await self.peer_device.Connected.set_async(True)
+            await self.peer.Connected.set_async(True)
             await self.Connected.set_async(True)
 
             # Resolve LE services on the device.
@@ -133,12 +133,12 @@ class Device(DeviceInterface):
                     links[obj_path] = link
 
             # Devices are linked, so we can mark services as resolved.
-            await self.peer_device.ServicesResolved.set_async(True)
+            await self.peer.ServicesResolved.set_async(True)
             await self.ServicesResolved.set_async(True)
 
         if self.connect_check_pairing_required(uuid):
             await self.pair()
-        await self.peer_adapter.add_device(self.peer_device)
+        await self.peer_adapter.add_device(self.peer)
 
         try:
             self.connecting_task = asyncio.create_task(task())
@@ -150,7 +150,7 @@ class Device(DeviceInterface):
     async def disconnect(self, uuid: Optional[str] = None) -> None:
         self.connecting_task.cancel()
         logging.info(f"Disconnecting {self}")
-        await self.peer_device.Connected.set_async(False)
+        await self.peer.Connected.set_async(False)
         await self.Connected.set_async(False)
 
     async def pair(self) -> None:
@@ -164,9 +164,9 @@ class Device(DeviceInterface):
             else:
                 raise NotImplementedError
             # Add paired peer device to our adapter.
-            self.peer_device.paired = True
-            self.peer_device.bonded = True
-            await self.peer_adapter.add_device(self.peer_device)
+            self.peer.paired = True
+            self.peer.bonded = True
+            await self.peer_adapter.add_device(self.peer)
             # Mark the device as paired and bonded.
             await self.Paired.set_async(True)
             await self.Bonded.set_async(True)

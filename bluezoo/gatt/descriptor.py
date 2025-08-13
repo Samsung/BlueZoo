@@ -31,7 +31,7 @@ class GattDescriptorClientLink(GattDescriptorInterface):
 
     def __prepare_options(self, options: dict):
         options.update({
-            "device": ("o", self.characteristic.device_path),
+            "device": ("o", self.characteristic.service.device.peer.get_object_path()),
             "mtu": ("q", self.characteristic.mtu),
             "link": ("s", self.characteristic.link)})
         return options

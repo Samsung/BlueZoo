@@ -28,7 +28,6 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         self.client = client
         self.service = service
 
-        self.device_path = self.service.device.get_object_path()
         self.mtu = self.client.MTU.get(512)
         self.link = "LE"
 
@@ -40,7 +39,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
 
     def __prepare_options(self, options: dict):
         options.update({
-            "device": ("o", self.device_path),
+            "device": ("o", self.service.device.peer.get_object_path()),
             "mtu": ("q", self.mtu),
             "link": ("s", self.link)})
         return options

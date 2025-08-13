@@ -33,6 +33,10 @@ class DBusBluezAuthenticationTimeoutError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.AuthenticationTimeout"
 
 
+class DBusBluezBREDRError(sdbus.DbusFailedError):
+    dbus_error_name = "org.bluez.Error.BREDR"
+
+
 class DBusBluezCanceledError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.Canceled"
 

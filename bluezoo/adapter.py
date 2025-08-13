@@ -84,7 +84,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         await self.UUIDs.set_async(list(uuids))
 
     async def add_device(self, device: Device):
-        device.setup_adapter(self)
+        device.attach_to_adapter(self)
         path = device.get_object_path()
         if path in self.devices:
             logging.debug(f"Updating {device} in {self}")
