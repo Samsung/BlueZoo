@@ -22,7 +22,7 @@ dependencies = ["pyparsing>=3.0.0", "sdbus>=0.14.0"]
 Homepage = "https://github.com/Samsung/BlueZoo"
 
 [project.scripts]
-bluezoo = "bluezoo:main"
+bluezoo = "bluezoo:service.main"
 
 [tool.setuptools.packages.find]
 exclude = ["scripts*", "tests*"]
