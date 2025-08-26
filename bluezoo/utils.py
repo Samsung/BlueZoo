@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 import re
 import weakref
 from collections.abc import Callable
@@ -15,6 +14,8 @@ from sdbus.dbus_proxy_async_interfaces import DbusInterfaceBaseAsync
 from sdbus.dbus_proxy_async_property import (DbusLocalPropertyAsync, DbusPropertyAsync,
                                              DbusProxyPropertyAsync, DbusRemoteObjectMeta)
 from sdbus.utils import parse_properties_changed
+
+from .log import logger
 
 
 class NoneTask:
@@ -128,7 +129,7 @@ def dbus_method_async_except_logging(func):
         except sdbus.SdBusBaseError:
             raise  # Propagate D-Bus errors.
         except Exception:
-            logging.exception(f"Error in D-Bus method {func.__name__}")
+            logger.exception(f"Error in D-Bus method {func.__name__}")
     return wrapper
 
 
@@ -141,7 +142,7 @@ def dbus_property_async_except_logging(func):
         except sdbus.SdBusBaseError:
             raise  # Propagate D-Bus errors.
         except Exception:
-            logging.exception(f"Error in D-Bus property {func.__name__}")
+            logger.exception(f"Error in D-Bus property {func.__name__}")
     return wrapper
 
 

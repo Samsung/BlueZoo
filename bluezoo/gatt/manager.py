@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 from typing import Any, Iterable
 
 import sdbus
 
 from ..interfaces.GattManager import GattManagerInterface
+from ..log import logger
 from ..utils import BluetoothUUID, dbus_method_async_except_logging
 from .application import GattApplicationClient
 from .characteristic import GattCharacteristicClient
@@ -26,7 +26,7 @@ class GattManager(GattManagerInterface):
         self.gatt_handle_counter = 0
 
     async def __del_gatt_application(self, app: GattApplicationClient) -> None:
-        logging.info(f"Removing GATT application {app.get_object_path()}")
+        logger.info(f"Removing GATT application {app.get_object_path()}")
         app.obj_removed_task.cancel()
         self.gatt_apps.pop((app.get_client(), app.get_object_path()))
         app.detach()
@@ -44,7 +44,7 @@ class GattManager(GattManagerInterface):
     async def RegisterApplication(self, application: str,
                                   options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to register GATT application {application}")
+        logger.debug(f"Client {sender} requested to register GATT application {application}")
 
         async def on_sender_lost():
             await self.__del_gatt_application(app)
@@ -53,7 +53,7 @@ class GattManager(GattManagerInterface):
         await app.object_manager_setup_sync_task(
             (GattServiceClient, GattCharacteristicClient, GattDescriptorClient))
 
-        logging.info(f"Adding GATT application {app.get_object_path()}")
+        logger.info(f"Adding GATT application {app.get_object_path()}")
         self.gatt_apps[sender, application] = app
 
         for obj in app.objects.values():
@@ -75,7 +75,7 @@ class GattManager(GattManagerInterface):
         async def wait_for_object_removed():
             await app.object_removed.wait()
             path = app.get_object_path()
-            logging.debug(f"Object removed, removing GATT application {path}")
+            logger.debug(f"Object removed, removing GATT application {path}")
             await self.__del_gatt_application(app)
         app.obj_removed_task = asyncio.create_task(wait_for_object_removed())
 
@@ -83,5 +83,5 @@ class GattManager(GattManagerInterface):
     @dbus_method_async_except_logging
     async def UnregisterApplication(self, application: str) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to unregister GATT application {application}")
+        logger.debug(f"Client {sender} requested to unregister GATT application {application}")
         await self.__del_gatt_application(self.gatt_apps[sender, application])

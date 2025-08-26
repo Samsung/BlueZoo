@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-import logging
 from typing import Any
 
 import sdbus
@@ -9,6 +8,7 @@ import sdbus
 from ..exceptions import DBusBluezDoesNotExistError, DBusBluezNotPermittedError
 from ..interfaces.LEAdvertisement import LEAdvertisementInterface
 from ..interfaces.LEAdvertisingManager import LEAdvertisingManagerInterface
+from ..log import logger
 from ..utils import (DBusClientMixin, dbus_method_async_except_logging,
                      dbus_property_async_except_logging)
 
@@ -40,7 +40,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
 
     async def __del_advertisement(self, adv: LEAdvertisementClient):
-        logging.info(f"Removing {adv}")
+        logger.info(f"Removing {adv}")
 
         self.advertisements.pop((adv.get_client(), adv.get_object_path()))
         adv.detach()
@@ -53,7 +53,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     async def RegisterAdvertisement(self, path: str,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to register advertisement {path}")
+        logger.debug(f"Client {sender} requested to register advertisement {path}")
 
         if not self.__supported_instances:
             raise DBusBluezNotPermittedError("Not Permitted")
@@ -64,7 +64,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         adv = LEAdvertisementClient(sender, path, options, on_sender_lost)
         await adv.properties_setup_sync_task()
 
-        logging.info(f"Registering {adv}")
+        logger.info(f"Registering {adv}")
         self.advertisements[sender, path] = adv
 
         await self.ActiveInstances.set_async(len(self.advertisements))
@@ -74,7 +74,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     @dbus_method_async_except_logging
     async def UnregisterAdvertisement(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to unregister advertisement {path}")
+        logger.debug(f"Client {sender} requested to unregister advertisement {path}")
         if adv := self.advertisements.get((sender, path)):
             await self.__del_advertisement(adv)
             return

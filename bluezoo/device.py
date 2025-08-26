@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 from typing import Any, Optional
 
 import sdbus
@@ -10,6 +9,7 @@ import sdbus
 from .gatt import (GattCharacteristicClient, GattCharacteristicClientLink, GattDescriptorClient,
                    GattDescriptorClientLink, GattServiceClient, GattServiceClientLink)
 from .interfaces.Device import DeviceInterface
+from .log import logger
 from .utils import NoneTask, dbus_method_async_except_logging, dbus_property_async_except_logging
 
 
@@ -107,7 +107,7 @@ class Device(DeviceInterface):
 
         async def task():
             # Use the peer's adapter to connect with this device.
-            logging.info(f"Connecting {self} with {self.adapter}")
+            logger.info(f"Connecting {self} with {self.adapter}")
 
             if self.connect_check_authorization_required(uuid):
                 await self.peer_adapter.controller.agent.RequestAuthorization(self.get_object_path())
@@ -145,11 +145,11 @@ class Device(DeviceInterface):
             async with asyncio.timeout(self.CONNECTING_TIMEOUT):
                 await self.connecting_task
         except asyncio.TimeoutError:
-            logging.info(f"Connecting with {self} timed out")
+            logger.info(f"Connecting with {self} timed out")
 
     async def disconnect(self, uuid: Optional[str] = None) -> None:
         self.connecting_task.cancel()
-        logging.info(f"Disconnecting {self}")
+        logger.info(f"Disconnecting {self}")
         await self.peer.Connected.set_async(False)
         await self.Connected.set_async(False)
 
@@ -157,7 +157,7 @@ class Device(DeviceInterface):
 
         async def task():
             # Use the peer's adapter to pair with this device.
-            logging.info(f"Pairing {self} with {self.adapter}")
+            logger.info(f"Pairing {self} with {self.adapter}")
             if self.adapter.controller.agent.capability == "NoInputNoOutput":
                 # There is no user interface to confirm the pairing.
                 pass
@@ -176,7 +176,7 @@ class Device(DeviceInterface):
             async with asyncio.timeout(self.PAIRING_TIMEOUT):
                 await self.pairing_task
         except asyncio.TimeoutError:
-            logging.info(f"Pairing with {self} timed out")
+            logger.info(f"Pairing with {self} timed out")
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
@@ -207,7 +207,7 @@ class Device(DeviceInterface):
     @dbus_method_async_except_logging
     async def CancelPairing(self) -> None:
         if not self.pairing_task.done():
-            logging.info(f"Canceling pairing with {self}")
+            logger.info(f"Canceling pairing with {self}")
         self.pairing_task.cancel()
 
     @sdbus.dbus_method_async_override()

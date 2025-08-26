@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 import os
 from typing import Any, BinaryIO, Optional
 
 import sdbus
 
 from ..interfaces.GattCharacteristic import GattCharacteristicInterface
+from ..log import logger
 from ..utils import (BluetoothUUID, DBusClientMixin, dbus_method_async_except_logging,
                      dbus_property_async_except_logging)
 
@@ -52,14 +52,14 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def ReadValue(self, options: dict[str, tuple[str, Any]]) -> bytes:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to read value of {self}")
+        logger.debug(f"Client {sender} requested to read value of {self}")
         return await self.client.ReadValue(self.__prepare_options(options))
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to write value of {self}")
+        logger.debug(f"Client {sender} requested to write value of {self}")
         if self.client.WriteAcquired.get() is None:
             await self.client.WriteValue(value, self.__prepare_options(options))
         elif self.client.WriteAcquired.get() is False:
@@ -76,21 +76,21 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def AcquireWrite(self, options: dict[str, tuple[str, Any]]) -> tuple[int, int]:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to acquire write of {self}")
+        logger.debug(f"Client {sender} requested to acquire write of {self}")
         return await self.client.AcquireWrite(options)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def AcquireNotify(self, options: dict[str, tuple[str, Any]]) -> tuple[int, int]:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to acquire notify of {self}")
+        logger.debug(f"Client {sender} requested to acquire notify of {self}")
         return await self.client.AcquireNotify(options)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def StartNotify(self) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to start notification of {self}")
+        logger.debug(f"Client {sender} requested to start notification of {self}")
         if self.client.NotifyAcquired.get() is None:
             await self.client.StartNotify()
         elif self.client.NotifyAcquired.get() is False:
@@ -116,7 +116,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def StopNotify(self) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to stop notification of {self}")
+        logger.debug(f"Client {sender} requested to stop notification of {self}")
         if self.client.NotifyAcquired.get() is None:
             await self.client.StopNotify()
         elif self.client.NotifyAcquired.get() is True:
@@ -130,7 +130,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def Confirm(self) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} confirmed {self}")
+        logger.debug(f"Client {sender} confirmed {self}")
         return await self.client.Confirm()
 
     @sdbus.dbus_property_async_override()

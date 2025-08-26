@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 
 import sdbus
 
 from .exceptions import DBusBluezAlreadyExistsError, DBusBluezDoesNotExistError
 from .interfaces.Agent import AgentInterface
 from .interfaces.AgentManager import AgentManagerInterface
+from .log import logger
 from .utils import DBusClientMixin, dbus_method_async_except_logging
 
 
@@ -38,7 +38,7 @@ class Controller(AgentManagerInterface):
         return "/org/bluez"
 
     async def __del_agent(self, agent: AgentClient):
-        logging.info(f"Unregistering {agent}")
+        logger.info(f"Unregistering {agent}")
 
         if agent == self.agent:
             self.agent = None
@@ -59,7 +59,7 @@ class Controller(AgentManagerInterface):
     @dbus_method_async_except_logging
     async def RegisterAgent(self, path: str, capability: str) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to register agent {path}")
+        logger.debug(f"Client {sender} requested to register agent {path}")
         capability = capability or "KeyboardDisplay"  # Fallback to default capability.
 
         # Do not allow registering more than one agent per client.
@@ -70,10 +70,10 @@ class Controller(AgentManagerInterface):
             await self.__del_agent(agent)
 
         agent = AgentClient(sender, path, capability, on_sender_lost)
-        logging.info(f"Registering {agent}")
+        logger.info(f"Registering {agent}")
 
         if self.agent is None:
-            logging.info(f"Setting {agent} as default agent")
+            logger.info(f"Setting {agent} as default agent")
             self.agent = agent
         self.agents[sender] = agent
 
@@ -86,7 +86,7 @@ class Controller(AgentManagerInterface):
     @dbus_method_async_except_logging
     async def UnregisterAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to unregister agent {path}")
+        logger.debug(f"Client {sender} requested to unregister agent {path}")
         if agent := self.agents.get(sender):
             if agent.get_object_path() == path:
                 await self.__del_agent(agent)
@@ -97,10 +97,10 @@ class Controller(AgentManagerInterface):
     @dbus_method_async_except_logging
     async def RequestDefaultAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logging.debug(f"Client {sender} requested to set {path} as default agent")
+        logger.debug(f"Client {sender} requested to set {path} as default agent")
         if agent := self.agents.get(sender):
             if agent.get_object_path() == path:
-                logging.info(f"Setting {agent} as default agent")
+                logger.info(f"Setting {agent} as default agent")
                 self.agent = agent
                 return
         raise DBusBluezDoesNotExistError("Does Not Exist")

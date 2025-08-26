@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 from enum import StrEnum
 from typing import Any
 
@@ -13,6 +12,7 @@ from .adv import LEAdvertisingManager
 from .device import Device
 from .gatt import GattManager
 from .interfaces.Adapter import AdapterInterface
+from .log import logger
 from .utils import (BluetoothClass, BluetoothUUID, NoneTask, dbus_method_async_except_logging,
                     dbus_property_async_except_logging)
 
@@ -89,21 +89,21 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         device.attach_to_adapter(self)
         path = device.get_object_path()
         if path in self.devices:
-            logging.debug(f"Updating {device} in {self}")
+            logger.debug(f"Updating {device} in {self}")
             await self.devices[path].properties_sync(device)
             return
-        logging.info(f"Adding {device} to {self}")
+        logger.info(f"Adding {device} to {self}")
         self.service.manager.export_with_manager(path, device)
         self.devices[path] = device
 
     async def del_device(self, device: Device):
         await device.disconnect()
-        logging.info(f"Removing {device} from {self}")
+        logger.info(f"Removing {device} from {self}")
         self.devices.pop(device.get_object_path())
         self.service.manager.remove_managed_object(device)
 
     async def __stop_discovering(self):
-        logging.info(f"Stopping discovery on {self}")
+        logger.info(f"Stopping discovery on {self}")
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
 
@@ -111,7 +111,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     @dbus_method_async_except_logging
     async def StartDiscovery(self) -> None:
         sender = sdbus.get_current_message().sender
-        logging.info(f"Starting discovery on {self}")
+        logger.info(f"Starting discovery on {self}")
 
         async def on_sender_lost():
             self.scan_subscribers.pop(sender, None)
@@ -239,7 +239,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
                 await self.Discoverable.set_async(False)
             # If timeout is non-zero, set up cancellation task.
             if timeout := self.discoverable_timeout:
-                logging.info(f"Setting {self} as discoverable for {timeout} seconds")
+                logger.info(f"Setting {self} as discoverable for {timeout} seconds")
                 self.discoverable_task = asyncio.create_task(task())
 
     @sdbus.dbus_property_async_override()
@@ -271,7 +271,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
                 await self.Pairable.set_async(False)
             # If timeout is non-zero, set up cancellation task.
             if timeout := self.pairable_timeout:
-                logging.info(f"Setting {self} as pairable for {timeout} seconds")
+                logger.info(f"Setting {self} as pairable for {timeout} seconds")
                 self.pairable_task = asyncio.create_task(task())
 
     @sdbus.dbus_property_async_override()

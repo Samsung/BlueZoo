@@ -13,6 +13,7 @@ from .adapter import Adapter
 from .bluezoo import BlueZooController
 from .controller import Controller
 from .device import Device
+from .log import logger
 from .utils import BluetoothAddress, BluetoothUUID, setup_default_bus
 
 
@@ -42,12 +43,12 @@ class BluezMockService:
     async def _service_lost_task(self):
         async for _, old, new in self.dbus.name_owner_changed.catch():
             if old and not new:
-                logging.debug(f"D-Bus service {old} lost")
+                logger.debug(f"D-Bus service {old} lost")
                 events.emit(f"service:lost:{old}")
 
     async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self.controller, id, address)
-        logging.info(f"Adding {adapter}")
+        logger.info(f"Adding {adapter}")
         self.manager.export_with_manager(adapter.get_object_path(), adapter)
         self.adapters[id] = adapter
         if self.adapter_auto_enable:
@@ -56,7 +57,7 @@ class BluezMockService:
 
     async def del_adapter(self, id: int):
         adapter = self.adapters.pop(id)
-        logging.info(f"Removing {adapter}")
+        logger.info(f"Removing {adapter}")
         for device in adapter.devices.values():
             await adapter.del_device(device)
         self.manager.remove_managed_object(adapter)
@@ -73,7 +74,7 @@ class BluezMockService:
 
         async def task():
             while True:
-                logging.info(f"Scanning for devices on {self.adapters[id]}")
+                logger.info(f"Scanning for devices on {self.adapters[id]}")
                 for adapter in self.adapters.values():
                     if adapter.id == id:
                         # Do not report our own adapter.
