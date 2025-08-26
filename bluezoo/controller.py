@@ -15,8 +15,8 @@ from .utils import DBusClientMixin, dbus_method_async_except_logging
 class AgentClient(DBusClientMixin, AgentInterface):
     """D-Bus client for the Agent interface."""
 
-    def __init__(self, service, path, capability: str):
-        super().__init__(service, path)
+    def __init__(self, service, path, capability: str, service_lost_callback):
+        super().__init__(service, path, service_lost_callback)
         self.capability = capability
 
     def __str__(self):
@@ -42,8 +42,9 @@ class Controller(AgentManagerInterface):
 
         if agent == self.agent:
             self.agent = None
-        self.service.on_client_lost_remove(agent.get_client(), agent.on_client_lost)
+
         self.agents.pop(agent.get_client())
+        agent.detach()
 
         if self.agents:
             # Promote the lastly registered agent to be the default one.
@@ -65,18 +66,16 @@ class Controller(AgentManagerInterface):
         for sender in self.agents:
             raise DBusBluezAlreadyExistsError("Already Exists")
 
-        agent = AgentClient(sender, path, capability)
+        async def on_sender_lost():
+            await self.__del_agent(agent)
+
+        agent = AgentClient(sender, path, capability, on_sender_lost)
         logging.info(f"Registering {agent}")
 
         if self.agent is None:
             logging.info(f"Setting {agent} as default agent")
             self.agent = agent
         self.agents[sender] = agent
-
-        async def on_client_lost():
-            await self.__del_agent(agent)
-        self.service.on_client_lost(sender, on_client_lost)
-        agent.on_client_lost = on_client_lost
 
         # If there is at least one agent, the adapters are pairable.
         for adapter in self.service.adapters.values():

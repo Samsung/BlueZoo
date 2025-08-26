@@ -8,6 +8,7 @@ from typing import Any
 
 import sdbus
 
+from . import events
 from .adv import LEAdvertisingManager
 from .device import Device
 from .gatt import GattManager
@@ -56,6 +57,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         self.discovering_task = NoneTask()
         self.uuids: list[str] = []
 
+        self.scan_subscribers = {}
         self.scan_filter_uuids: list[str] = []
         self.scan_filter_transport = "auto"
         self.scan_filter_duplicate = False
@@ -110,13 +112,23 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     async def StartDiscovery(self) -> None:
         sender = sdbus.get_current_message().sender
         logging.info(f"Starting discovery on {self}")
-        self.service.on_client_lost(sender, self.__stop_discovering)
+
+        async def on_sender_lost():
+            self.scan_subscribers.pop(sender, None)
+            if not self.scan_subscribers:
+                await self.__stop_discovering()
+        self.scan_subscribers[sender] = events.subscribe(f"service:lost:{sender}",
+                                                         on_sender_lost, once=True)
+
         self.discovering_task = self.service.create_discovering_task(self.id)
         await self.Discovering.set_async(True)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def StopDiscovery(self) -> None:
+        sender = sdbus.get_current_message().sender
+        if subscriber := self.scan_subscribers.pop(sender, None):
+            subscriber.unsubscribe()
         await self.__stop_discovering()
 
     @sdbus.dbus_method_async_override()

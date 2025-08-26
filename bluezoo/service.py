@@ -4,41 +4,16 @@
 import asyncio
 import logging
 from argparse import ArgumentParser
-from collections import defaultdict
 
 from sdbus import DbusObjectManagerInterfaceAsync
 from sdbus_async.dbus_daemon import FreedesktopDbus
 
+from . import events
 from .adapter import Adapter
 from .bluezoo import BlueZooController
 from .controller import Controller
 from .device import Device
 from .utils import BluetoothAddress, BluetoothUUID, setup_default_bus
-
-
-class EventEmitter:
-    """Event registration and emitting."""
-
-    def __init__(self):
-        self.listeners = defaultdict(list)
-
-    def __contains__(self, event: str):
-        return event in self.listeners
-
-    def on(self, event: str, coroutine):
-        self.listeners[event].append(coroutine)
-
-    def remove(self, event: str, coroutine=None):
-        """Remove the event listener or all listeners."""
-        if coroutine is not None:
-            self.listeners[event].remove(coroutine)
-        else:
-            self.listeners.pop(event, None)
-
-    async def emit(self, event: str, *args, **kwargs):
-        if event in self.listeners:
-            for coroutine in self.listeners[event]:
-                await coroutine(*args, **kwargs)
 
 
 class BluezMockService:
@@ -48,10 +23,7 @@ class BluezMockService:
         # Proxy for the D-Bus daemon interface used
         # for listening to ownership changes.
         self.dbus = FreedesktopDbus()
-        self.dbus_task = asyncio.create_task(self._client_lost_task())
-
-        # Event emitter engine.
-        self.events = EventEmitter()
+        self.dbus_task = asyncio.create_task(self._service_lost_task())
 
         # Register dedicated BlueZoo controller interface.
         self.bluezoo = BlueZooController(self)
@@ -67,21 +39,11 @@ class BluezMockService:
         self.adapter_auto_enable = adapter_auto_enable
         self.scan_interval = scan_interval
 
-    async def _client_lost_task(self):
+    async def _service_lost_task(self):
         async for _, old, new in self.dbus.name_owner_changed.catch():
-            if old and not new:  # Client lost.
-                event = f"client:lost:{old}"
-                if event in self.events:
-                    logging.debug(f"Client {old} lost")
-                    await self.events.emit(f"client:lost:{old}")
-                    self.events.remove(f"client:lost:{old}")
-
-    def on_client_lost(self, client: str, coroutine):
-        """Execute the coroutine on the client lost event."""
-        self.events.on(f"client:lost:{client}", coroutine)
-
-    def on_client_lost_remove(self, client: str, coroutine):
-        self.events.remove(f"client:lost:{client}", coroutine)
+            if old and not new:
+                logging.debug(f"D-Bus service {old} lost")
+                events.emit(f"service:lost:{old}")
 
     async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self.controller, id, address)

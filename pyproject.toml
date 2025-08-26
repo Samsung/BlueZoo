@@ -16,7 +16,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Mocking",
 ]
-dependencies = ["pyparsing>=3.0.0", "sdbus>=0.14.0"]
+dependencies = ["pyventus>=0.6.0", "pyparsing>=3.0.0", "sdbus>=0.14.0"]
 
 [project.urls]
 Homepage = "https://github.com/Samsung/BlueZoo"

@@ -28,8 +28,8 @@ class GattManager(GattManagerInterface):
     async def __del_gatt_application(self, app: GattApplicationClient) -> None:
         logging.info(f"Removing GATT application {app.get_object_path()}")
         app.obj_removed_task.cancel()
-        self.service.on_client_lost_remove(app.get_client(), app.on_client_lost)
         self.gatt_apps.pop((app.get_client(), app.get_object_path()))
+        app.detach()
         await self.update_uuids()
 
     def get_gatt_registered_primary_services(self) -> Iterable[BluetoothUUID]:
@@ -46,7 +46,10 @@ class GattManager(GattManagerInterface):
         sender = sdbus.get_current_message().sender
         logging.debug(f"Client {sender} requested to register GATT application {application}")
 
-        app = GattApplicationClient(sender, application, options)
+        async def on_sender_lost():
+            await self.__del_gatt_application(app)
+
+        app = GattApplicationClient(sender, application, options, on_sender_lost)
         await app.object_manager_setup_sync_task(
             (GattServiceClient, GattCharacteristicClient, GattDescriptorClient))
 
@@ -68,11 +71,6 @@ class GattManager(GattManagerInterface):
             self.gatt_handles.add(obj.Handle.get())
 
         await self.update_uuids()
-
-        async def on_client_lost():
-            await self.__del_gatt_application(app)
-        self.service.on_client_lost(app.get_client(), on_client_lost)
-        app.on_client_lost = on_client_lost
 
         async def wait_for_object_removed():
             await app.object_removed.wait()

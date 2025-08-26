@@ -5,8 +5,10 @@ import asyncio
 import logging
 import re
 import weakref
+from collections.abc import Callable
 from enum import IntFlag
 from functools import wraps
+from typing import Optional
 
 import sdbus
 from sdbus.dbus_proxy_async_interfaces import DbusInterfaceBaseAsync
@@ -73,10 +75,25 @@ DbusPropertyAsync.__get__ = DbusPropertyAsync__get__
 class DBusClientMixin(DbusInterfaceBaseAsync):
     """Helper class for D-Bus client objects."""
 
-    def __init__(self, service: str, path: str):
+    def __init__(self, service: str, path: str,
+                 service_lost_callback: Optional[Callable] = None):
         super().__init__()
-        # Connect our client to the D-Bus service.
-        self._connect(service, path)
+        self._service_lost_subscription = None
+        # Connect our client object to the D-Bus service.
+        self._proxify(service, path)
+        if service_lost_callback is not None:
+            self._attach_service_lost(service_lost_callback)
+
+    def _attach_service_lost(self, callback):
+        from .events import subscribe
+        self._service_lost_subscription = subscribe(
+            f"service:lost:{self.get_client()}", callback, once=True)
+
+    def detach(self):
+        """Detach the client object from the D-Bus service."""
+        if self._service_lost_subscription is not None:
+            self._service_lost_subscription.unsubscribe()
+            self._service_lost_subscription = None
 
     async def _props_watch(self):
         interfaces = self.__class__.mro()

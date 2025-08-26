@@ -13,8 +13,8 @@ from ..utils import DBusClientMixin
 class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsync):
     """D-Bus client for registered GATT application."""
 
-    def __init__(self, service, path, options):
-        super().__init__(service, path)
+    def __init__(self, service, path, options, service_lost_callback):
+        super().__init__(service, path, service_lost_callback)
         self.options = options
 
         self.objects = {}
@@ -36,7 +36,7 @@ class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsy
         objects = parse_get_managed_objects(
             interfaces,
             response_data,
-            on_unknown_interface="ignore",
+            on_unknown_interface="none",
             on_unknown_member="ignore")
 
         for path, (iface, values) in objects.items():
