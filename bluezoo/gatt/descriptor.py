@@ -9,6 +9,7 @@ from ..interfaces.GattDescriptor import GattDescriptorInterface
 from ..log import logger
 from ..utils import (BluetoothUUID, DBusClientMixin, dbus_method_async_except_logging,
                      dbus_property_async_except_logging)
+from .characteristic import GattCharacteristicClientLink
 
 
 class GattDescriptorClient(DBusClientMixin, GattDescriptorInterface):
@@ -21,7 +22,7 @@ class GattDescriptorClient(DBusClientMixin, GattDescriptorInterface):
 class GattDescriptorClientLink(GattDescriptorInterface):
     """GATT descriptor server linked with a remote client."""
 
-    def __init__(self, client: GattDescriptorClient, characteristic):
+    def __init__(self, client: GattDescriptorClient, characteristic: GattCharacteristicClientLink):
         super().__init__()
         self.client = client
         self.characteristic = characteristic

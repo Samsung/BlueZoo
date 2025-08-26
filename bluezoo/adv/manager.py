@@ -33,7 +33,11 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
 
     def __init__(self):
         super().__init__()
-        self.advertisements = {}
+        self.advertisements: dict[tuple[str, str], LEAdvertisementClient] = {}
+
+    async def cleanup(self):
+        for adv in self.advertisements.values():
+            await adv.cleanup()
 
     @property
     def __supported_instances(self) -> int:
@@ -43,7 +47,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         logger.info(f"Removing {adv}")
 
         self.advertisements.pop((adv.get_client(), adv.get_object_path()))
-        adv.detach()
+        await adv.cleanup()
 
         await self.ActiveInstances.set_async(len(self.advertisements))
         await self.SupportedInstances.set_async(self.__supported_instances)

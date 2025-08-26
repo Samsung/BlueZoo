@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
+import logging
 import unittest
+
+import coloredlogs
 
 from bluezoo.utils import BluetoothAddress, BluetoothClass, BluetoothUUID
 
@@ -27,12 +30,26 @@ class UtilsTestCase(unittest.TestCase):
         bt_class += BluetoothClass.Service.Networking
         self.assertEqual(bt_class, 0x020200)
 
+    def test_class_add_service_invalid(self):
+        bt_class = BluetoothClass(BluetoothClass.Major.Health)
+        with self.assertRaises(TypeError):
+            bt_class += "computer"
+
     def test_class_del_service(self):
         bt_class = BluetoothClass(BluetoothClass.Major.Phone, 0,
                                   BluetoothClass.Service.Networking
                                   | BluetoothClass.Service.Audio)
         bt_class -= BluetoothClass.Service.Networking
         self.assertEqual(bt_class, 0x200200)
+
+    def test_class_del_service_invalid(self):
+        bt_class = BluetoothClass(BluetoothClass.Major.Health)
+        with self.assertRaises(TypeError):
+            bt_class -= "computer"
+
+    def test_class_icon(self):
+        bt_class = BluetoothClass(BluetoothClass.Major.Phone)
+        self.assertEqual(bt_class.icon, "phone")
 
     def test_uuid(self):
         uuid = BluetoothUUID("12345678-0000-0000-0000-000000000000")
@@ -48,4 +65,5 @@ class UtilsTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    coloredlogs.install(logging.DEBUG)
     unittest.main()

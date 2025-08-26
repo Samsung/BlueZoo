@@ -13,8 +13,8 @@ from .device import Device
 from .gatt import GattManager
 from .interfaces.Adapter import AdapterInterface
 from .log import logger
-from .utils import (BluetoothClass, BluetoothUUID, NoneTask, dbus_method_async_except_logging,
-                    dbus_property_async_except_logging)
+from .utils import (BluetoothClass, BluetoothUUID, NoneTask, create_background_task,
+                    dbus_method_async_except_logging, dbus_property_async_except_logging)
 
 # List of predefined device names.
 TEST_NAMES = (
@@ -36,10 +36,9 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         OnDisabling = "on-disabling"
         OffBlocked = "off-blocked"
 
-    def __init__(self, controller, id: int, address: str):
-        self.controller = controller
-        self.service = controller.service
+    def __init__(self, mock, id: int, address: str):
         super().__init__()
+        self.mock = mock
 
         self.id = id
         self.address = address
@@ -69,6 +68,13 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     def __str__(self):
         return f"adapter[{self.id}][{self.address}]"
 
+    async def cleanup(self):
+        await LEAdvertisingManager.cleanup(self)
+        await GattManager.cleanup(self)
+        self.discoverable_task.cancel()
+        self.pairable_task.cancel()
+        self.discovering_task.cancel()
+
     def get_object_path(self):
         return f"/org/bluez/hci{self.id}"
 
@@ -93,14 +99,15 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
             await self.devices[path].properties_sync(device)
             return
         logger.info(f"Adding {device} to {self}")
-        self.service.manager.export_with_manager(path, device)
+        self.mock.manager.export_with_manager(path, device)
         self.devices[path] = device
 
     async def del_device(self, device: Device):
         await device.disconnect()
         logger.info(f"Removing {device} from {self}")
         self.devices.pop(device.get_object_path())
-        self.service.manager.remove_managed_object(device)
+        self.mock.manager.remove_managed_object(device)
+        await device.cleanup()
 
     async def __stop_discovering(self):
         logger.info(f"Stopping discovery on {self}")
@@ -120,7 +127,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         self.scan_subscribers[sender] = events.subscribe(f"service:lost:{sender}",
                                                          on_sender_lost, once=True)
 
-        self.discovering_task = self.service.create_discovering_task(self.id)
+        self.discovering_task = self.mock.create_discovering_task(self.id)
         await self.Discovering.set_async(True)
 
     @sdbus.dbus_method_async_override()
@@ -205,7 +212,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
             await self.PowerState.set_async(Adapter.PowerStateValue.On)
 
         if self.powered != value:
-            asyncio.create_task(on() if value else off())
+            create_background_task(on() if value else off())
             self.powered = value
 
     @sdbus.dbus_property_async_override()
@@ -227,7 +234,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     @Connectable.setter
     def Connectable_setter(self, value: bool):
         if not value:
-            asyncio.create_task(self.Discoverable.set_async(False))
+            create_background_task(self.Discoverable.set_async(False))
         self.connectable = value
 
     def __setup_discoverable_timeout(self):

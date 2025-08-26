@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import weakref
 
 import sdbus
 from sdbus.utils import parse_get_managed_objects
 
-from ..utils import DBusClientMixin
+from ..log import logger
+from ..utils import DBusClientMixin, NoneTask
 
 
 class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsync):
@@ -15,18 +15,17 @@ class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsy
 
     def __init__(self, service, path, options, service_lost_callback):
         super().__init__(service, path, service_lost_callback)
+        # Use service lost callback also in case of interface removed.
+        self.interfaces_removed_callback = service_lost_callback
         self.options = options
 
-        self.objects = {}
-        self.object_removed = asyncio.Event()
+        self.objects: dict[str, DBusClientMixin] = {}
+        self.interfaces_removed_task = NoneTask()
 
-    async def _obj_mgr_watch(self):
-        async for path, ifaces in self.interfaces_removed.catch():
-            self.objects.pop(path, None)
-            self.object_removed.set()
-
-    def _obj_mgr_watch_task_cancel(self):
-        self._obj_mgr_watch_task.cancel()
+    async def cleanup(self):
+        for obj in self.objects.values():
+            await obj.cleanup()
+        self.interfaces_removed_task.cancel()
 
     async def object_manager_setup_sync_task(self, interfaces):
         """Synchronize cached objects with the D-Bus service."""
@@ -42,9 +41,14 @@ class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsy
         for path, (iface, values) in objects.items():
             if iface not in interfaces:
                 continue
-            obj = iface(client, path)
+            obj: DBusClientMixin = iface(client, path)
             await obj.properties_setup_sync_task()
             self.objects[path] = obj
 
-        self._obj_mgr_watch_task = asyncio.create_task(self._obj_mgr_watch())
-        weakref.finalize(self, self._obj_mgr_watch_task_cancel)
+        async def catch_interfaces_removed():
+            async for path, _ in self.interfaces_removed.catch():
+                if self.objects.pop(path, None):
+                    logger.debug(f"Object removed from GATT application {path}")
+                    await self.interfaces_removed_callback()
+
+        self.interfaces_removed_task = asyncio.create_task(catch_interfaces_removed())

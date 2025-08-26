@@ -64,6 +64,10 @@ class Device(DeviceInterface):
     def __str__(self):
         return f"device[{self.address}]"
 
+    async def cleanup(self):
+        self.pairing_task.cancel()
+        self.connecting_task.cancel()
+
     def attach_to_adapter(self, adapter):
         """Set the adapter to which this device is added."""
         self.peer = Device(adapter)
@@ -89,11 +93,11 @@ class Device(DeviceInterface):
         if self.appearance != device.appearance:
             await self.Appearance.set_async(device.appearance)
         if self.uuids != device.uuids:
-            await self.ServiceUUIDs.set_async(device.uuids)
+            await self.UUIDs.set_async(device.uuids)
         if self.manufacturer_data != device.manufacturer_data:
             await self.ManufacturerData.set_async(device.manufacturer_data)
         if self.service_data != device.service_data:
-            await self.ServiceData.set_async(device.service)
+            await self.ServiceData.set_async(device.service_data)
 
     def connect_check_pairing_required(self, uuid):
         return self.is_br_edr and not self.paired
@@ -110,7 +114,7 @@ class Device(DeviceInterface):
             logger.info(f"Connecting {self} with {self.adapter}")
 
             if self.connect_check_authorization_required(uuid):
-                await self.peer_adapter.controller.agent.RequestAuthorization(self.get_object_path())
+                await self.peer_adapter.mock.root.agent.RequestAuthorization(self.get_object_path())
 
             # Mark devices as connected.
             await self.peer.Connected.set_async(True)
@@ -127,7 +131,7 @@ class Device(DeviceInterface):
                     if isinstance(obj, GattDescriptorClient):
                         link = GattDescriptorClientLink(obj, links[obj.Characteristic.get()])
                     # Export the link with the manager.
-                    self.peer_adapter.controller.service.manager.export_with_manager(
+                    self.peer_adapter.mock.manager.export_with_manager(
                         link.get_object_path(), link)
                     self.services[link.get_object_path()] = link
                     links[obj_path] = link
@@ -158,7 +162,7 @@ class Device(DeviceInterface):
         async def task():
             # Use the peer's adapter to pair with this device.
             logger.info(f"Pairing {self} with {self.adapter}")
-            if self.adapter.controller.agent.capability == "NoInputNoOutput":
+            if self.adapter.mock.root.agent.capability == "NoInputNoOutput":
                 # There is no user interface to confirm the pairing.
                 pass
             else:

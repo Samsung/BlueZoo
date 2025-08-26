@@ -2,8 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
+import logging
 import os
 import unittest
+
+import coloredlogs
+
+from bluezoo import bluezoo
 
 
 async def client(*args):
@@ -41,26 +46,10 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
         os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = address.strip().decode('utf-8')
 
         # Start mock with two adapters.
-        self._mock = await asyncio.create_subprocess_exec(
-            "bluezoo",
-            "--verbose",
-            "--adapter=00:00:00:11:11:11",
-            "--adapter=00:00:00:22:22:22",
-            stderr=asyncio.subprocess.PIPE)
-
-        # Wait for the adapter to appear.
-        await self._mock.stderr.readline()
-
-        async def forward():
-            while True:
-                line = await self._mock.stderr.readline()
-                os.sys.stderr.buffer.write(line)
-        self._mock_forwarder = asyncio.create_task(forward())
+        await bluezoo.startup(
+            adapters=["00:00:00:11:11:11", "00:00:00:22:22:22"])
 
     async def asyncTearDown(self):
-        self._mock_forwarder.cancel()
-        self._mock.terminate()
-        await self._mock.wait()
         self._bus.terminate()
         await self._bus.wait()
 
@@ -86,4 +75,5 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-    asyncio.run(unittest.main())
+    coloredlogs.install(logging.DEBUG)
+    unittest.main()

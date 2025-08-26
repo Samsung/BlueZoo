@@ -3,8 +3,14 @@
 
 import asyncio
 import contextlib
+import logging
 import os
+import sys
 import unittest
+
+import coloredlogs
+
+from bluezoo import bluezoo
 
 
 class AsyncProcessContext:
@@ -37,8 +43,8 @@ class AsyncProcessContext:
                 raise TimeoutError(f"Timeout waiting for '{data}' in output")
             try:
                 line = await asyncio.wait_for(self.__read(eol), timeout=diff)
-                os.sys.stdout.buffer.write(line)
-                os.sys.stdout.flush()
+                sys.stdout.buffer.write(line)
+                sys.stdout.flush()
                 if not line:  # EOF
                     break
                 output += line
@@ -83,32 +89,18 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = address.strip().decode('utf-8')
 
         # Start mock with two adapters.
-        self._mock = await asyncio.create_subprocess_exec(
-            "bluezoo",
-            "--verbose",
-            "--auto-enable",
-            "--scan-interval=1",
-            "--adapter=00:00:00:11:11:11",
-            "--adapter=00:00:00:22:22:22",
-            stderr=asyncio.subprocess.PIPE)
-
-        # Wait for log message about adding adapter 00:00:00:11:11:11
-        await self._mock.stderr.readline()
-        # Wait for log message about adding adapter 00:00:00:22:22:22
-        await self._mock.stderr.readline()
-
-        async def forward():
-            while True:
-                line = await self._mock.stderr.readline()
-                os.sys.stderr.buffer.write(line)
-        self._mock_forwarder = asyncio.create_task(forward())
+        await bluezoo.startup(
+            adapters=["00:00:00:11:11:11", "00:00:00:22:22:22"],
+            auto_enable=True,
+            scan_interval=1)
 
     async def asyncTearDown(self):
-        self._mock_forwarder.cancel()
-        self._mock.terminate()
-        await self._mock.wait()
+        await bluezoo.shutdown()
         self._bus.terminate()
         await self._bus.wait()
+        # Make sure that all tasks were properly handled. The list shall
+        # contain the asyncTearDown() task only - we are in it right now.
+        self.assertEqual(len(asyncio.all_tasks()), 1)
 
     async def test_agent(self):
         async with await client(no_agent=True) as proc:
@@ -383,4 +375,5 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-    asyncio.run(unittest.main())
+    coloredlogs.install(logging.DEBUG)
+    unittest.main()

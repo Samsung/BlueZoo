@@ -9,8 +9,9 @@ import sdbus
 
 from ..interfaces.GattCharacteristic import GattCharacteristicInterface
 from ..log import logger
-from ..utils import (BluetoothUUID, DBusClientMixin, dbus_method_async_except_logging,
-                     dbus_property_async_except_logging)
+from ..utils import (BluetoothUUID, DBusClientMixin, create_background_task,
+                     dbus_method_async_except_logging, dbus_property_async_except_logging)
+from .service import GattServiceClientLink
 
 
 class GattCharacteristicClient(DBusClientMixin, GattCharacteristicInterface):
@@ -23,7 +24,7 @@ class GattCharacteristicClient(DBusClientMixin, GattCharacteristicInterface):
 class GattCharacteristicClientLink(GattCharacteristicInterface):
     """GATT characteristic server linked with a remote client."""
 
-    def __init__(self, client: GattCharacteristicClient, service):
+    def __init__(self, client: GattCharacteristicClient, service: GattServiceClientLink):
         super().__init__()
         self.client = client
         self.service = service
@@ -101,8 +102,8 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
 
             def reader():
                 if data := self.f_read.read(self.mtu):
-                    asyncio.create_task(self.Value.set_async(data))
-                    asyncio.create_task(self.client.Confirm())
+                    create_background_task(self.Value.set_async(data))
+                    create_background_task(self.client.Confirm())
                 elif self.f_read is not None:
                     loop = asyncio.get_running_loop()
                     loop.remove_reader(self.f_read)

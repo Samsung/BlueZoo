@@ -16,13 +16,18 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Topic :: Software Development :: Testing :: Mocking",
 ]
-dependencies = ["pyventus>=0.6.0", "pyparsing>=3.0.0", "sdbus>=0.14.0"]
+dependencies = [
+    "coloredlogs>=6.0.0",
+    "pyventus>=0.6.0",
+    "pyparsing>=3.0.0",
+    "sdbus>=0.14.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/Samsung/BlueZoo"
 
 [project.scripts]
-bluezoo = "bluezoo:service.main"
+bluezoo = "bluezoo:bluezoo.main"
 
 [tool.setuptools.packages.find]
 exclude = ["scripts*", "tests*"]

@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-import asyncio
 from typing import Any, Iterable
 
 import sdbus
@@ -21,15 +20,18 @@ class GattManager(GattManagerInterface):
     def __init__(self):
         super().__init__()
 
-        self.gatt_apps = {}
+        self.gatt_apps: dict[tuple[str, str], GattApplicationClient] = {}
         self.gatt_handles = set()
         self.gatt_handle_counter = 0
 
+    async def cleanup(self):
+        for app in self.gatt_apps.values():
+            await app.cleanup()
+
     async def __del_gatt_application(self, app: GattApplicationClient) -> None:
         logger.info(f"Removing GATT application {app.get_object_path()}")
-        app.obj_removed_task.cancel()
-        self.gatt_apps.pop((app.get_client(), app.get_object_path()))
-        app.detach()
+        self.gatt_apps.pop((app.get_client(), app.get_object_path()), None)
+        await app.cleanup()
         await self.update_uuids()
 
     def get_gatt_registered_primary_services(self) -> Iterable[BluetoothUUID]:
@@ -71,13 +73,6 @@ class GattManager(GattManagerInterface):
             self.gatt_handles.add(obj.Handle.get())
 
         await self.update_uuids()
-
-        async def wait_for_object_removed():
-            await app.object_removed.wait()
-            path = app.get_object_path()
-            logger.debug(f"Object removed, removing GATT application {path}")
-            await self.__del_gatt_application(app)
-        app.obj_removed_task = asyncio.create_task(wait_for_object_removed())
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging

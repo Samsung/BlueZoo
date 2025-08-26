@@ -10,7 +10,7 @@ from functools import wraps
 from typing import Optional
 
 import sdbus
-from sdbus.dbus_proxy_async_interfaces import DbusInterfaceBaseAsync
+from sdbus.dbus_proxy_async_interfaces import DbusInterfaceCommonAsync
 from sdbus.dbus_proxy_async_property import (DbusLocalPropertyAsync, DbusPropertyAsync,
                                              DbusProxyPropertyAsync, DbusRemoteObjectMeta)
 from sdbus.utils import parse_properties_changed
@@ -32,6 +32,17 @@ class NoneTask:
 
     def cancelled(self):
         return self._cancelled
+
+
+def create_background_task(coroutine):
+    """Create a task which reference will be collected on completion."""
+    task = asyncio.create_task(coroutine)
+    create_background_task.tasks.add(task)
+    task.add_done_callback(create_background_task.tasks.discard)
+
+
+# Keep track of all background tasks.
+create_background_task.tasks = set()
 
 
 class DBusPropertyAsyncProxyBindWithCache(DbusProxyPropertyAsync):
@@ -73,50 +84,49 @@ def DbusPropertyAsync__get__(self, obj, obj_class):
 DbusPropertyAsync.__get__ = DbusPropertyAsync__get__
 
 
-class DBusClientMixin(DbusInterfaceBaseAsync):
+class DBusClientMixin(DbusInterfaceCommonAsync):
     """Helper class for D-Bus client objects."""
 
     def __init__(self, service: str, path: str,
                  service_lost_callback: Optional[Callable] = None):
         super().__init__()
-        self._service_lost_subscription = None
         # Connect our client object to the D-Bus service.
         self._proxify(service, path)
+
+        self._properties_changed_task = NoneTask()
+        self._service_lost_subscription = None
+
         if service_lost_callback is not None:
-            self._attach_service_lost(service_lost_callback)
+            from .events import subscribe
+            self._service_lost_subscription = subscribe(
+                f"service:lost:{self.get_client()}", service_lost_callback, once=True)
 
-    def _attach_service_lost(self, callback):
-        from .events import subscribe
-        self._service_lost_subscription = subscribe(
-            f"service:lost:{self.get_client()}", callback, once=True)
-
-    def detach(self):
-        """Detach the client object from the D-Bus service."""
+    async def cleanup(self):
         if self._service_lost_subscription is not None:
             self._service_lost_subscription.unsubscribe()
-            self._service_lost_subscription = None
-
-    async def _props_watch(self):
-        interfaces = self.__class__.mro()
-        async for x in self.properties_changed.catch():
-            for k, v in parse_properties_changed(interfaces, x).items():
-                getattr(self, k).cache(v)
-
-    def _props_watch_task_cancel(self):
-        self._props_watch_task.cancel()
+        self._properties_changed_task.cancel()
 
     async def properties_setup_sync_task(self):
         """Synchronize cached properties with the D-Bus service."""
+
         properties = await self.properties_get_all_dict()
         for k, v in properties.items():
             getattr(self, k).cache(v)
-        self._props_watch_task = asyncio.create_task(self._props_watch())
-        weakref.finalize(self, self._props_watch_task_cancel)
+
+        async def catch_properties_changed():
+            interfaces = self.__class__.mro()
+            async for x in self.properties_changed.catch():
+                for k, v in parse_properties_changed(interfaces, x).items():
+                    getattr(self, k).cache(v)
+
+        self._properties_changed_task = asyncio.create_task(catch_properties_changed())
 
     def get_client(self) -> str:
+        assert isinstance(self._dbus, DbusRemoteObjectMeta)
         return self._dbus.service_name
 
     def get_object_path(self) -> str:
+        assert isinstance(self._dbus, DbusRemoteObjectMeta)
         return self._dbus.object_path
 
 
