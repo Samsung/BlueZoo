@@ -108,6 +108,7 @@ class DBusClientMixin(DbusInterfaceCommonAsync):
 
     async def properties_setup_sync_task(self):
         """Synchronize cached properties with the D-Bus service."""
+        from .events import emit
 
         properties = await self.properties_get_all_dict()
         for k, v in properties.items():
@@ -116,8 +117,11 @@ class DBusClientMixin(DbusInterfaceCommonAsync):
         async def catch_properties_changed():
             interfaces = self.__class__.mro()
             async for x in self.properties_changed.catch():
+                properties = {}
                 for k, v in parse_properties_changed(interfaces, x).items():
                     getattr(self, k).cache(v)
+                    properties[k] = v
+                emit(f"properties:changed:{id(self)}", properties=properties)
 
         self._properties_changed_task = asyncio.create_task(catch_properties_changed())
 

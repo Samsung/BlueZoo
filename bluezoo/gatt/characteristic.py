@@ -7,6 +7,7 @@ from typing import Any, BinaryIO, Optional
 
 import sdbus
 
+from .. import events
 from ..interfaces.GattCharacteristic import GattCharacteristicInterface
 from ..log import logger
 from ..utils import (BluetoothUUID, DBusClientMixin, create_background_task,
@@ -32,6 +33,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         self.mtu = self.client.MTU.get(512)
         self.link = "LE"
 
+        self.client_props_changed_subscription = events.Subscription()
         self.f_read: Optional[BinaryIO] = None
         self.f_write: Optional[BinaryIO] = None
 
@@ -60,10 +62,11 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
+        acquired = self.client.WriteAcquired.get()
         logger.debug(f"Client {sender} requested to write value of {self}")
-        if self.client.WriteAcquired.get() is None:
+        if acquired is None:
             await self.client.WriteValue(value, self.__prepare_options(options))
-        elif self.client.WriteAcquired.get() is False:
+        elif not acquired:
             fd, self.mtu = await self.client.AcquireWrite(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
@@ -91,19 +94,33 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def StartNotify(self) -> None:
         sender = sdbus.get_current_message().sender
+        acquired = self.client.NotifyAcquired.get()
         logger.debug(f"Client {sender} requested to start notification of {self}")
-        if self.client.NotifyAcquired.get() is None:
+
+        if acquired is None and not self.client.Notifying.get():
+
+            async def on_properties_changed(properties: dict[str, Any]):
+                if "Value" in properties:
+                    await self.Value.set_async(properties["Value"])
+                    # Confirm the indication via D-Bus call.
+                    await self.client.Confirm()
+
+            self.client_props_changed_subscription = events.subscribe(
+                f"properties:changed:{id(self.client)}", on_properties_changed)
             await self.client.StartNotify()
-        elif self.client.NotifyAcquired.get() is False:
+
+        elif not acquired:
             fd, self.mtu = await self.client.AcquireNotify(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
-            self.f_read = open(os.dup(fd), "rb", buffering=0)
+            self.f_read = open(os.dup(fd), "r+b", buffering=0)
 
             def reader():
                 if data := self.f_read.read(self.mtu):
                     create_background_task(self.Value.set_async(data))
-                    create_background_task(self.client.Confirm())
+                    if "indicate" in self.client.Flags.get():
+                        # Confirm the indication via file descriptor.
+                        self.f_read.write(b"\x01")
                 elif self.f_read is not None:
                     loop = asyncio.get_running_loop()
                     loop.remove_reader(self.f_read)
@@ -117,10 +134,12 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def StopNotify(self) -> None:
         sender = sdbus.get_current_message().sender
+        acquired = self.client.NotifyAcquired.get()
         logger.debug(f"Client {sender} requested to stop notification of {self}")
-        if self.client.NotifyAcquired.get() is None:
+        if acquired is None:
             await self.client.StopNotify()
-        elif self.client.NotifyAcquired.get() is True:
+            self.client_props_changed_subscription.unsubscribe()
+        elif acquired:
             if self.f_read is not None:
                 loop = asyncio.get_running_loop()
                 loop.remove_reader(self.f_read.fileno())

@@ -85,6 +85,8 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             stdout=asyncio.subprocess.PIPE)
         address = await self._bus.stdout.readline()
 
+        # Force unbuffered output in all Python processes.
+        os.environ['PYTHONUNBUFFERED'] = '1'
         # Update environment with D-Bus address.
         os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = address.strip().decode('utf-8')
 
@@ -120,10 +122,16 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
     async def test_discoverable(self):
         async with await client() as proc:
 
-            await proc.write("select 00:00:00:11:11:11")
             await proc.write("discoverable on")
             await proc.expect("Changing discoverable on succeeded")
 
+            await proc.write("discoverable off")
+            await proc.expect("Changing discoverable off succeeded")
+
+    async def test_discoverable_timeout(self):
+        async with await client() as proc:
+
+            await proc.write("discoverable on")
             # Verify that the timeout works as expected.
             await proc.write("discoverable-timeout 1")
             await proc.expect("Discoverable: no", timeout=1.5)
@@ -139,6 +147,9 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("scan on")
             await proc.expect("Discovery started")
             await proc.expect("Device 00:00:00:11:11:11")
+
+            await proc.write("scan off")
+            await proc.expect("Discovery stopped")
 
     async def test_scan_le(self):
         async with await client() as proc:
@@ -184,6 +195,10 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             # scanner to pick up the new advertisement data.
             await proc.expect("Name: BLE-Device-42", timeout=1.5)
 
+            await proc.write("select 00:00:00:11:11:11")
+            await proc.write("advertise off")
+            await proc.expect("Advertising object unregistered")
+
     async def test_gatt_application(self):
         async with await client() as proc:
 
@@ -209,6 +224,9 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             # Verify that new service was added to the adapter.
             await proc.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
 
+            await proc.write("gatt.unregister-application")
+            await proc.expect("Application unregistered")
+
     async def test_pair(self):
         async with await client(no_agent=True) as proc:
 
@@ -225,6 +243,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Discovery started")
             await proc.expect("Device 00:00:00:11:11:11")
 
+            await proc.write("trust 00:00:00:11:11:11")
             await proc.write("pair 00:00:00:11:11:11")
             await proc.expect("Pairing successful")
 
@@ -232,6 +251,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.write("info 00:00:00:11:11:11")
             await proc.expect("Device 00:00:00:11:11:11 (public)")
             await proc.expect("Paired: yes")
+            await proc.expect("Trusted: yes")
 
             await proc.write("select 00:00:00:11:11:11")
             # Verify that the device is paired.
@@ -372,6 +392,80 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             # Verify that the value was correctly written.
             await proc.write("gatt.read")
             await proc.expect("DONE")
+
+    async def test_connect_gatt_indicate_call(self):
+
+        srv = AsyncProcessContext(await asyncio.create_subprocess_exec(
+            "tests/gatt/server.py", "--adapter=hci1", "--service=0xF100", "--char=0xF110",
+            "--primary", "--flag=read", "--flag=indicate", "--mutate=0.1",
+            stdout=asyncio.subprocess.PIPE))
+        await srv.expect("Registered 0xF100 on hci1")
+
+        adv = AsyncProcessContext(await asyncio.create_subprocess_exec(
+            "tests/gatt/advertise.py", "--adapter=hci1", "--service=0xF100",
+            "--discoverable",
+            stdout=asyncio.subprocess.PIPE))
+        await adv.expect("Advertising 0xF100 on hci1")
+
+        async with srv, adv, await client() as proc:
+
+            # Scan for the GATT service on first adapter.
+            await proc.write("select 00:00:00:11:11:11")
+            await proc.write("scan le")
+            await proc.expect("Discovery started")
+            await proc.expect("Device 00:00:00:22:22:22")
+
+            # Connect to the GATT service.
+            await proc.write("connect 00:00:00:22:22:22")
+            await proc.expect("Connection successful")
+
+            # Verify notifications from 0xF001 characteristic.
+            await proc.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
+            await proc.write("gatt.notify on")
+            await proc.expect("Notify started")
+
+            # Verify that the indication was confirmed via D-Bus call.
+            await srv.expect("Indication confirmed via D-Bus call")
+
+            await proc.write("gatt.notify off")
+            await proc.expect("Notify stopped")
+
+    async def test_connect_gatt_indicate_socket(self):
+
+        srv = AsyncProcessContext(await asyncio.create_subprocess_exec(
+            "tests/gatt/server.py", "--adapter=hci1", "--service=0xF100", "--char=0xF110",
+            "--primary", "--flag=read", "--flag=indicate", "--mutate=0.1", "--with-sockets",
+            stdout=asyncio.subprocess.PIPE))
+        await srv.expect("Registered 0xF100 on hci1")
+
+        adv = AsyncProcessContext(await asyncio.create_subprocess_exec(
+            "tests/gatt/advertise.py", "--adapter=hci1", "--service=0xF100",
+            "--discoverable",
+            stdout=asyncio.subprocess.PIPE))
+        await adv.expect("Advertising 0xF100 on hci1")
+
+        async with srv, adv, await client() as proc:
+
+            # Scan for the GATT service on first adapter.
+            await proc.write("select 00:00:00:11:11:11")
+            await proc.write("scan le")
+            await proc.expect("Discovery started")
+            await proc.expect("Device 00:00:00:22:22:22")
+
+            # Connect to the GATT service.
+            await proc.write("connect 00:00:00:22:22:22")
+            await proc.expect("Connection successful")
+
+            # Verify notifications from 0xF001 characteristic.
+            await proc.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
+            await proc.write("gatt.notify on")
+            await proc.expect("Notify started")
+
+            # Verify that the indication was confirmed via socket.
+            await srv.expect("Indication confirmation via socket: 01")
+
+            await proc.write("gatt.notify off")
+            await proc.expect("Notify stopped")
 
 
 if __name__ == '__main__':
