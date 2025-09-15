@@ -4,23 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bluezoo"
-version = "1.0.0"
+version = "1.0.1"
+license = "GPL-2.0-only"
 description = "A mock for the BlueZ D-Bus API"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
-    "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3",
-    "Topic :: Software Development :: Testing",
-    "Topic :: Software Development :: Testing :: Mocking",
+  "Intended Audience :: Developers",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Testing",
+  "Topic :: Software Development :: Testing :: Mocking",
 ]
 dependencies = [
-    "coloredlogs>=6.0.0",
-    "pyventus>=0.6.0",
-    "pyparsing>=3.0.0",
-    "sdbus>=0.14.1",
+  "coloredlogs>=6.0.0",
+  "pyventus>=0.6.0",
+  "pyparsing>=3.0.0",
+  "sdbus>=0.14.1",
 ]
 
 [project.urls]

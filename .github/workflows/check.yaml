@@ -17,16 +17,12 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: >
             bluez
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-      - name: Install dependencies
-        run: pip install tox
+            tox
       - name: Run Tests
         run: tox -e py3
 
@@ -35,7 +31,7 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -49,11 +45,10 @@ jobs:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: awalsh128/cache-apt-pkgs-action@v1
         with:
-          python-version: '3.x'
-      - name: Install dependencies
-        run: pip install autopep8
+          packages: >
+            python3-autopep8
       - name: Run linter
         run: autopep8 --recursive --diff --exit-code .

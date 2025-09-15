@@ -1,0 +1,7 @@
+restylers:
+  - name: autopep8
+  - name: isort
+  - name: prettier-markdown
+  - name: prettier-yaml
+  - name: taplo
+  - name: whitespace

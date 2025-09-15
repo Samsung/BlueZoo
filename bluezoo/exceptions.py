@@ -9,6 +9,10 @@
 import sdbus
 
 
+class DBusBluezA2DPError(sdbus.DbusFailedError):
+    dbus_error_name = "org.bluez.Error.A2DP"
+
+
 class DBusBluezAlreadyConnectedError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.AlreadyConnected"
 
