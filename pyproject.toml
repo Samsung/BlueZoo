@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bluezoo"
-version = "1.0.1"
+version = "1.0.2"
 license = "GPL-2.0-only"
 description = "A mock for the BlueZ D-Bus API"
 readme = "README.md"
@@ -18,7 +18,7 @@ classifiers = [
 ]
 dependencies = [
   "coloredlogs>=6.0.0",
-  "pyventus>=0.6.0",
+  "pyventus>=0.7.0",
   "pyparsing>=3.0.0",
   "sdbus>=0.14.1",
 ]
