@@ -51,12 +51,12 @@ class BluezDocParser:
 
     PARAM = pp.Group(TYPE + pp.Optional(IDENTIFIER))("param")
 
-    ARRAY <<= pp.Group(
+    ARRAY <<= pp.Group((
         pp.Keyword("array")
         + pp.Literal("{").suppress()
         + pp.delimitedList(PARAM)("elements")
         + pp.Literal("}").suppress()
-    )
+    ))
 
     ANNOTATIONS = (
         pp.Literal("[").suppress()
@@ -66,11 +66,11 @@ class BluezDocParser:
         + pp.Literal("]").suppress()
     )("annotations")
 
-    NOTES = pp.Group(
+    NOTES = pp.Group((
         pp.Literal("(").suppress()
         + pp.CharsNotIn("()")
         + pp.Literal(")").suppress()
-    )("notes")
+    ))("notes")
 
     INTERFACE = (
         pp.Word(pp.alphas, pp.alphas + pp.nums + ".")("name")
@@ -207,6 +207,11 @@ def type2signature(t):
             return f"a{types[0]}"
         return f"a({''.join(types)})"
     raise ValueError(f"Unknown type: {t}")
+
+
+def list2python(lst):
+    """Stringify a list to a Python code."""
+    return repr(lst).replace("'", '"')
 
 
 # Annotations used in BlueZ documentation and their D-Bus equivalents.
@@ -352,25 +357,25 @@ import sdbus
 TEMPLATE_CLASS = """
 class {name}Interface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='{interface}'):
+        interface_name="{interface}"):
 """
 
 TEMPLATE_METHOD = """
     @sdbus.dbus_method_async(
-        input_signature='{input_signature}',
+        input_signature="{input_signature}",
         input_args_names={input_arguments},
-        result_signature='{result_signature}',
+        result_signature="{result_signature}",
         result_args_names={result_arguments},
         flags=sdbus.DbusUnprivilegedFlag)
     async def {name}(
-        {params}
+        {params},
     ) -> {returns}:
         raise NotImplementedError
 """
 
 TEMPLATE_SIGNAL = """
     @sdbus.dbus_signal_async(
-        signal_signature='{signature}',
+        signal_signature="{signature}",
         signal_args_names={arguments})
     def {name}(self) -> {type}:
         raise NotImplementedError
@@ -378,7 +383,7 @@ TEMPLATE_SIGNAL = """
 
 TEMPLATE_PROPERTY = """
     @sdbus.dbus_property_async(
-        property_signature='{signature}',
+        property_signature="{signature}",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def {name}(self) -> {type}:
         raise NotImplementedError
@@ -421,9 +426,9 @@ def save_python(name: str, interface: Interface):
                 params=",\n        ".join(params),
                 returns=returns2type(method.returns),
                 input_signature="".join([x[1] for x in arguments]),
-                input_arguments=repr([x[0] for x in arguments]),
+                input_arguments=list2python([x[0] for x in arguments]),
                 result_signature="".join(results),
-                result_arguments=repr([f"r{i}" for i in range(len(results))]),
+                result_arguments=list2python([f"r{i}" for i in range(len(results))]),
             ))
 
         for signal in interface.signals:
@@ -431,7 +436,7 @@ def save_python(name: str, interface: Interface):
                 name=signal.name,
                 type=returns2type([x[1] for x in signal.parameters]),
                 signature="".join([type2signature(x[1]) for x in signal.parameters]),
-                arguments=repr([x[0] for x in signal.parameters]),
+                arguments=list2python([x[0] for x in signal.parameters]),
             ))
 
         for property in interface.properties:

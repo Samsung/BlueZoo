@@ -11,41 +11,41 @@ import sdbus
 
 class AgentManagerInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='org.bluez.AgentManager1'):
+        interface_name="org.bluez.AgentManager1"):
 
     @sdbus.dbus_method_async(
-        input_signature='os',
-        input_args_names=['agent', 'capability'],
-        result_signature='',
+        input_signature="os",
+        input_args_names=["agent", "capability"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RegisterAgent(
         self,
         agent: str,
-        capability: str
+        capability: str,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='o',
-        input_args_names=['agent'],
-        result_signature='',
+        input_signature="o",
+        input_args_names=["agent"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def UnregisterAgent(
         self,
-        agent: str
+        agent: str,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='o',
-        input_args_names=['agent'],
-        result_signature='',
+        input_signature="o",
+        input_args_names=["agent"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RequestDefaultAgent(
         self,
-        agent: str
+        agent: str,
     ) -> None:
         raise NotImplementedError

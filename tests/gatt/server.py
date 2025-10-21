@@ -12,17 +12,17 @@ from bluezoo.interfaces.GattManager import GattManagerInterface
 from bluezoo.utils import setup_default_bus
 
 parser = ArgumentParser()
-parser.add_argument('--adapter', metavar='ADAPTER', default='hci0',
+parser.add_argument("--adapter", metavar="ADAPTER", default="hci0",
                     help="Bluetooth adapter to use; default: %(default)s")
-parser.add_argument('--timeout', metavar='SECONDS', type=int, default=60,
+parser.add_argument("--timeout", metavar="SECONDS", type=int, default=60,
                     help="GATT service availability timeout; default: %(default)s")
-parser.add_argument('--service', metavar='UUID', default='0xF000',
+parser.add_argument("--service", metavar="UUID", default="0xF000",
                     help="GATT service UUID; default: %(default)s")
-parser.add_argument('--char', metavar='UUID', default='0xF001',
+parser.add_argument("--char", metavar="UUID", default="0xF001",
                     help="GATT characteristic UUID; default: %(default)s")
-parser.add_argument('--primary', action='store_true',
+parser.add_argument("--primary", action="store_true",
                     help="export service as primary")
-parser.add_argument('--flag', action='append', required=True, choices=[
+parser.add_argument("--flag", action="append", required=True, choices=[
     "broadcast", "read", "write-without-response", "write", "notify", "indicate",
     "authenticated-signed-writes", "extended-properties", "reliable-write",
     "writable-auxiliaries", "encrypt-read", "encrypt-write", "encrypt-notify",
@@ -30,11 +30,11 @@ parser.add_argument('--flag', action='append', required=True, choices=[
     "encrypt-authenticated-notify", "encrypt-authenticated-indicate", "secure-read",
     "secure-write", "secure-notify", "secure-indicate", "authorize"],
     help="export characteristic with specific flags")
-parser.add_argument('--value', metavar='HEX', type=bytearray.fromhex, default=bytearray(),
+parser.add_argument("--value", metavar="HEX", type=bytearray.fromhex, default=bytearray(),
                     help="initial GATT characteristic value")
-parser.add_argument('--mutate', metavar='SECONDS', type=float,
+parser.add_argument("--mutate", metavar="SECONDS", type=float,
                     help="mutate the GATT characteristic value repeatedly")
-parser.add_argument('--with-sockets', action='store_true',
+parser.add_argument("--with-sockets", action="store_true",
                     help="use sockets for communication")
 
 args = parser.parse_args()
@@ -44,16 +44,16 @@ setup_default_bus("system")
 
 class ServiceInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='org.bluez.GattService1'):
+        interface_name="org.bluez.GattService1"):
 
     @sdbus.dbus_property_async(
-        property_signature='s',
+        property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def UUID(self) -> str:
         return args.service
 
     @sdbus.dbus_property_async(
-        property_signature='b',
+        property_signature="b",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Primary(self) -> bool:
         return args.primary
@@ -61,7 +61,7 @@ class ServiceInterface(
 
 class CharacteristicInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='org.bluez.GattCharacteristic1'):
+        interface_name="org.bluez.GattCharacteristic1"):
 
     notifying = False
     value = args.value
@@ -70,28 +70,28 @@ class CharacteristicInterface(
     f_notify = None
 
     @sdbus.dbus_method_async(
-        input_signature='a{sv}',
-        input_args_names=['options'],
-        result_signature='ay',
-        result_args_names=['r0'],
+        input_signature="a{sv}",
+        input_args_names=["options"],
+        result_signature="ay",
+        result_args_names=["r0"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def ReadValue(self, options: dict[str, tuple[str, object]]) -> bytes:
         print("Read characteristic with options:", options)
         return self.value
 
     @sdbus.dbus_method_async(
-        input_signature='aya{sv}',
-        input_args_names=['value', 'options'],
+        input_signature="aya{sv}",
+        input_args_names=["value", "options"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, object]]):
         print("Write characteristic with options:", options)
         self.value = bytearray(value)
 
     @sdbus.dbus_method_async(
-        input_signature='a{sv}',
-        input_args_names=['options'],
-        result_signature='hq',
-        result_args_names=['r0', 'r1'],
+        input_signature="a{sv}",
+        input_args_names=["options"],
+        result_signature="hq",
+        result_args_names=["r0", "r1"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AcquireWrite(self, options: dict[str, tuple[str, object]]) -> tuple[int, int]:
         print("Acquire write with options:", options)
@@ -111,10 +111,10 @@ class CharacteristicInterface(
         return os.dup(f2.fileno()), mtu
 
     @sdbus.dbus_method_async(
-        input_signature='a{sv}',
-        input_args_names=['options'],
-        result_signature='hq',
-        result_args_names=['r0', 'r1'],
+        input_signature="a{sv}",
+        input_args_names=["options"],
+        result_signature="hq",
+        result_args_names=["r0", "r1"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AcquireNotify(self, options: dict[str, tuple[str, object]]) -> tuple[int, int]:
         print("Acquire notify with options:", options)
@@ -150,19 +150,19 @@ class CharacteristicInterface(
         print("Indication confirmed via D-Bus call")
 
     @sdbus.dbus_property_async(
-        property_signature='s',
+        property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def UUID(self) -> str:
         return args.char
 
     @sdbus.dbus_property_async(
-        property_signature='o',
+        property_signature="o",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Service(self) -> str:
         return "/srv"
 
     @sdbus.dbus_property_async(
-        property_signature='ay',
+        property_signature="ay",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Value(self) -> bytes:
         return self.value
@@ -171,22 +171,22 @@ class CharacteristicInterface(
     def Value_setter(self, value: bytes):
         self.value = bytearray(value)
 
-    if args.with_sockets and set(args.flag).intersection({'write-without-response'}):
+    if args.with_sockets and set(args.flag).intersection({"write-without-response"}):
         @sdbus.dbus_property_async(
-            property_signature='b',
+            property_signature="b",
             flags=sdbus.DbusPropertyEmitsChangeFlag)
         def WriteAcquired(self) -> bool:
             return self.f_write is not None
 
-    if args.with_sockets and set(args.flag).intersection({'notify', 'indicate'}):
+    if args.with_sockets and set(args.flag).intersection({"notify", "indicate"}):
         @sdbus.dbus_property_async(
-            property_signature='b',
+            property_signature="b",
             flags=sdbus.DbusPropertyEmitsChangeFlag)
         def NotifyAcquired(self) -> bool:
             return self.f_notify is not None
 
     @sdbus.dbus_property_async(
-        property_signature='b',
+        property_signature="b",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Notifying(self) -> bool:
         return self.notifying
@@ -196,7 +196,7 @@ class CharacteristicInterface(
         self.notifying = value
 
     @sdbus.dbus_property_async(
-        property_signature='as',
+        property_signature="as",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Flags(self) -> list[str]:
         return args.flag

@@ -40,15 +40,13 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
-  autopep8-lint:
+  lint:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: awalsh128/cache-apt-pkgs-action@v1
-        with:
-          packages: >
-            python3-autopep8
+      - name: Install dependencies
+        run: pip install ruff
       - name: Run linter
-        run: autopep8 --recursive --diff --exit-code .
+        run: ruff check

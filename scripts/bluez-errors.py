@@ -41,4 +41,4 @@ with args.output as f:
     for error in sorted(errors):
         f.write("\n\n")
         f.write(f"class DBusBluez{error}Error(sdbus.DbusFailedError):\n")
-        f.write(f"    dbus_error_name = \"org.bluez.Error.{error}\"\n")
+        f.write(f'    dbus_error_name = "org.bluez.Error.{error}"\n')

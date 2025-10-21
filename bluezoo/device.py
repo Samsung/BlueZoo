@@ -114,7 +114,8 @@ class Device(DeviceInterface):
             logger.info(f"Connecting {self} with {self.adapter}")
 
             if self.connect_check_authorization_required(uuid):
-                await self.peer_adapter.mock.root.agent.RequestAuthorization(self.get_object_path())
+                await self.peer_adapter.mock.root.agent.RequestAuthorization(
+                    self.get_object_path())
 
             # Mark devices as connected.
             await self.peer.Connected.set_async(True)

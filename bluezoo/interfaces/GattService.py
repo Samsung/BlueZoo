@@ -11,34 +11,34 @@ import sdbus
 
 class GattServiceInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='org.bluez.GattService1'):
+        interface_name="org.bluez.GattService1"):
 
     @sdbus.dbus_property_async(
-        property_signature='s',
+        property_signature="s",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def UUID(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature='b',
+        property_signature="b",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Primary(self) -> bool:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature='o',
+        property_signature="o",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Device(self) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature='ao',
+        property_signature="ao",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Includes(self) -> list[str]:
         raise NotImplementedError
 
     @sdbus.dbus_property_async(
-        property_signature='q',
+        property_signature="q",
         flags=sdbus.DbusPropertyEmitsChangeFlag)
     def Handle(self) -> int:
         raise NotImplementedError

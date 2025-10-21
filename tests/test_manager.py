@@ -14,20 +14,20 @@ from bluezoo import bluezoo
 async def client(*args):
     """Run bluetoothctl in a subprocess and return output."""
     proc = await asyncio.create_subprocess_exec(
-        'bluetoothctl', *args, stdout=asyncio.subprocess.PIPE)
+        "bluetoothctl", *args, stdout=asyncio.subprocess.PIPE)
     return await proc.stdout.read()
 
 
 async def manager(method, *args):
     """Call method on BlueZoo manager and return output."""
     proc = await asyncio.create_subprocess_exec(
-        'dbus-send',
-        '--system',
-        '--print-reply',
-        '--type=method_call',
-        '--dest=org.bluez',
-        '/org/bluezoo',
-        'org.bluezoo.Manager1.' + method,
+        "dbus-send",
+        "--system",
+        "--print-reply",
+        "--type=method_call",
+        "--dest=org.bluez",
+        "/org/bluezoo",
+        "org.bluezoo.Manager1." + method,
         *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE)
@@ -40,12 +40,12 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start a private D-Bus session and get the address.
         self._bus = await asyncio.create_subprocess_exec(
-            'dbus-daemon', '--session', '--print-address',
+            "dbus-daemon", "--session", "--print-address",
             stdout=asyncio.subprocess.PIPE)
         address = await self._bus.stdout.readline()
 
         # Update environment with D-Bus address.
-        os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = address.strip().decode('utf-8')
+        os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = address.strip().decode("utf-8")
 
         # Start mock with two adapters.
         await bluezoo.startup(
@@ -84,6 +84,6 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertIn(b"org.bluezoo.Error.DoesNotExist", out[1])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     coloredlogs.install(logging.DEBUG)
     unittest.main()

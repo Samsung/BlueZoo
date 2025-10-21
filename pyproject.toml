@@ -37,3 +37,16 @@ max-line-length = 99
 
 [tool.isort]
 line_length = 99
+
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.lint]
+select = [
+  # Standard errors and warnings
+  "E", "W", "F",
+  # Consistent commas and quotes
+  "COM", "Q",
+  # Ensure that scripts are executable
+  "EXE",
+]

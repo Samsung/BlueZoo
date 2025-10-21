@@ -1,6 +1,11 @@
 restylers:
   - name: autopep8
   - name: isort
+  - name: ruff
+    command:
+      - ruff
+      - check
+      - --fix-only
   - name: prettier-markdown
   - name: prettier-yaml
   - name: taplo

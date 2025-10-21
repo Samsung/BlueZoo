@@ -11,29 +11,29 @@ import sdbus
 
 class GattManagerInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='org.bluez.GattManager1'):
+        interface_name="org.bluez.GattManager1"):
 
     @sdbus.dbus_method_async(
-        input_signature='oa{sv}',
-        input_args_names=['application', 'options'],
-        result_signature='',
+        input_signature="oa{sv}",
+        input_args_names=["application", "options"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RegisterApplication(
         self,
         application: str,
-        options: dict[str, tuple[str, object]]
+        options: dict[str, tuple[str, object]],
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='o',
-        input_args_names=['application'],
-        result_signature='',
+        input_signature="o",
+        input_args_names=["application"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def UnregisterApplication(
         self,
-        application: str
+        application: str,
     ) -> None:
         raise NotImplementedError

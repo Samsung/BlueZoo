@@ -64,6 +64,6 @@ class UtilsTestCase(unittest.TestCase):
             BluetoothUUID("12345678-0000-0000")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     coloredlogs.install(logging.DEBUG)
     unittest.main()

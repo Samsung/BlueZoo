@@ -34,7 +34,7 @@ class AsyncProcessContext:
 
     async def expect(self, data: str, timeout=1.0, eol=True):
         """Read output until expected text is found or timeout occurs."""
-        output = b''
+        output = b""
         needle = data.encode()
         start = asyncio.get_event_loop().time()
         while True:
@@ -52,7 +52,7 @@ class AsyncProcessContext:
                     break
             except asyncio.TimeoutError:
                 continue
-        return output.decode(errors='ignore')
+        return output.decode(errors="ignore")
 
     async def write(self, data: str, end="\n"):
         self.proc.stdin.write((data + end).encode())
@@ -62,7 +62,7 @@ class AsyncProcessContext:
 async def client(*args, no_agent=False):
     """Start bluetoothctl in a subprocess and return a context manager."""
     proc = AsyncProcessContext(await asyncio.create_subprocess_exec(
-        'bluetoothctl', *args,
+        "bluetoothctl", *args,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE))
     if no_agent:
@@ -81,14 +81,14 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start a private D-Bus session and get the address.
         self._bus = await asyncio.create_subprocess_exec(
-            'dbus-daemon', '--session', '--print-address',
+            "dbus-daemon", "--session", "--print-address",
             stdout=asyncio.subprocess.PIPE)
         address = await self._bus.stdout.readline()
 
         # Force unbuffered output in all Python processes.
-        os.environ['PYTHONUNBUFFERED'] = '1'
+        os.environ["PYTHONUNBUFFERED"] = "1"
         # Update environment with D-Bus address.
-        os.environ['DBUS_SYSTEM_BUS_ADDRESS'] = address.strip().decode('utf-8')
+        os.environ["DBUS_SYSTEM_BUS_ADDRESS"] = address.strip().decode("utf-8")
 
         # Start mock with two adapters.
         await bluezoo.startup(
@@ -468,6 +468,6 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await proc.expect("Notify stopped")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     coloredlogs.install(logging.DEBUG)
     unittest.main()

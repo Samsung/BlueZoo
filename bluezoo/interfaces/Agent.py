@@ -11,115 +11,115 @@ import sdbus
 
 class AgentInterface(
         sdbus.DbusInterfaceCommonAsync,
-        interface_name='org.bluez.Agent1'):
+        interface_name="org.bluez.Agent1"):
 
     @sdbus.dbus_method_async(
-        input_signature='',
+        input_signature="",
         input_args_names=[],
-        result_signature='',
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def Release(
-        self
+        self,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='o',
-        input_args_names=['device'],
-        result_signature='s',
-        result_args_names=['r0'],
+        input_signature="o",
+        input_args_names=["device"],
+        result_signature="s",
+        result_args_names=["r0"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RequestPinCode(
         self,
-        device: str
+        device: str,
     ) -> str:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='os',
-        input_args_names=['device', 'pincode'],
-        result_signature='',
+        input_signature="os",
+        input_args_names=["device", "pincode"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def DisplayPinCode(
         self,
         device: str,
-        pincode: str
+        pincode: str,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='o',
-        input_args_names=['device'],
-        result_signature='u',
-        result_args_names=['r0'],
+        input_signature="o",
+        input_args_names=["device"],
+        result_signature="u",
+        result_args_names=["r0"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RequestPasskey(
         self,
-        device: str
+        device: str,
     ) -> int:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='ouq',
-        input_args_names=['device', 'passkey', 'entered'],
-        result_signature='',
+        input_signature="ouq",
+        input_args_names=["device", "passkey", "entered"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def DisplayPasskey(
         self,
         device: str,
         passkey: int,
-        entered: int
+        entered: int,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='ou',
-        input_args_names=['device', 'passkey'],
-        result_signature='',
+        input_signature="ou",
+        input_args_names=["device", "passkey"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RequestConfirmation(
         self,
         device: str,
-        passkey: int
+        passkey: int,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='o',
-        input_args_names=['device'],
-        result_signature='',
+        input_signature="o",
+        input_args_names=["device"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def RequestAuthorization(
         self,
-        device: str
+        device: str,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='os',
-        input_args_names=['device', 'uuid'],
-        result_signature='',
+        input_signature="os",
+        input_args_names=["device", "uuid"],
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AuthorizeService(
         self,
         device: str,
-        uuid: str
+        uuid: str,
     ) -> None:
         raise NotImplementedError
 
     @sdbus.dbus_method_async(
-        input_signature='',
+        input_signature="",
         input_args_names=[],
-        result_signature='',
+        result_signature="",
         result_args_names=[],
         flags=sdbus.DbusUnprivilegedFlag)
     async def Cancel(
-        self
+        self,
     ) -> None:
         raise NotImplementedError
