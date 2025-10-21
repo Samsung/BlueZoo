@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 
 import sdbus
 
@@ -69,7 +70,8 @@ class GattManager(GattManagerInterface):
                 # If server does not have the Handle property, update local cache only.
                 obj.Handle.cache(self.gatt_handle_counter)
             elif obj.Handle.get() in self.gatt_handles:
-                raise ValueError(f"Handle {obj.Handle.get()} already exists")
+                msg = f"Handle {obj.Handle.get()} already exists"
+                raise ValueError(msg)
             self.gatt_handles.add(obj.Handle.get())
 
         await self.update_uuids()

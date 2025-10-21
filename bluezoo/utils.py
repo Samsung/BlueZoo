@@ -7,7 +7,6 @@ import weakref
 from collections.abc import Callable
 from enum import IntFlag
 from functools import wraps
-from typing import Optional
 
 import sdbus
 from sdbus.dbus_proxy_async_interfaces import DbusInterfaceCommonAsync
@@ -76,8 +75,7 @@ def DbusPropertyAsync__get__(self, obj, obj_class):
     dbus_meta = obj._dbus
     if isinstance(dbus_meta, DbusRemoteObjectMeta):
         return DBusPropertyAsyncProxyBindWithCache(self, obj, dbus_meta)
-    else:
-        return DbusLocalPropertyAsync(self, obj)
+    return DbusLocalPropertyAsync(self, obj)
 
 
 # Monkey-patch the library to support property caching.
@@ -88,7 +86,7 @@ class DBusClientMixin(DbusInterfaceCommonAsync):
     """Helper class for D-Bus client objects."""
 
     def __init__(self, service: str, path: str,
-                 service_lost_callback: Optional[Callable] = None):
+                 service_lost_callback: Callable | None = None):
         super().__init__()
         # Connect our client object to the D-Bus service.
         self._proxify(service, path)
@@ -173,16 +171,23 @@ def setup_default_bus(address: str):
 class BluetoothAddress(str):
     """Validate the given Bluetooth address."""
 
-    re_address = re.compile(r"^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
+    # Disallow user-defined extra attributes.
+    __slots__ = ()
+
+    __re_address = re.compile(r"^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$")
 
     def __new__(cls, address: str):
-        if cls.re_address.match(address) is None:
-            raise ValueError("Invalid Bluetooth address")
+        if cls.__re_address.match(address) is None:
+            msg = "Invalid Bluetooth address"
+            raise ValueError(msg)
         return super().__new__(cls, address)
 
 
 class BluetoothClass(int):
     """Bluetooth Class of Device."""
+
+    # Disallow user-defined extra attributes.
+    __slots__ = ()
 
     class Major(IntFlag):
         Miscellaneous = 0x00
@@ -217,12 +222,14 @@ class BluetoothClass(int):
 
     def __add__(self, other):
         if not isinstance(other, BluetoothClass.Service):
-            raise TypeError("Can only add BluetoothClass.Service")
+            msg = "Can only add BluetoothClass.Service"
+            raise TypeError(msg)
         return BluetoothClass(self.major, self.minor, self.services | other)
 
     def __sub__(self, other):
         if not isinstance(other, BluetoothClass.Service):
-            raise TypeError("Can only subtract BluetoothClass.Service")
+            msg = "Can only subtract BluetoothClass.Service"
+            raise TypeError(msg)
         return BluetoothClass(self.major, self.minor, self.services & ~other)
 
     @property
@@ -258,15 +265,19 @@ class BluetoothClass(int):
 class BluetoothUUID(str):
     """Expand the given Bluetooth UUID to the full 128-bit form."""
 
-    re_uuid_full = re.compile(
+    # Disallow user-defined extra attributes.
+    __slots__ = ()
+
+    __re_uuid_full = re.compile(
         r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-    re_uuid_hex = re.compile(r"^(0x)?([0-9a-f]{1,8})$")
+    __re_uuid_hex = re.compile(r"^(0x)?([0-9a-f]{1,8})$")
 
     def __new__(cls, uuid: str):
         uuid = uuid.lower()  # Normalize the UUID to lowercase.
-        if match := cls.re_uuid_hex.match(uuid):
+        if match := cls.__re_uuid_hex.match(uuid):
             v = hex(int(match.group(2), 16))[2:].zfill(8)
             uuid = v + "-0000-1000-8000-00805f9b34fb"
-        elif not cls.re_uuid_full.match(uuid):
-            raise ValueError("Invalid Bluetooth UUID")
+        elif not cls.__re_uuid_full.match(uuid):
+            msg = "Invalid Bluetooth UUID"
+            raise ValueError(msg)
         return super().__new__(cls, uuid)

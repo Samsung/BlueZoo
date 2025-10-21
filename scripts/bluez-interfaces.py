@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import re
+import sys
 from argparse import ArgumentParser, FileType
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -51,12 +52,12 @@ class BluezDocParser:
 
     PARAM = pp.Group(TYPE + pp.Optional(IDENTIFIER))("param")
 
-    ARRAY <<= pp.Group((
+    ARRAY <<= pp.Group(
         pp.Keyword("array")
         + pp.Literal("{").suppress()
         + pp.delimitedList(PARAM)("elements")
-        + pp.Literal("}").suppress()
-    ))
+        + pp.Literal("}").suppress(),
+    )
 
     ANNOTATIONS = (
         pp.Literal("[").suppress()
@@ -66,11 +67,11 @@ class BluezDocParser:
         + pp.Literal("]").suppress()
     )("annotations")
 
-    NOTES = pp.Group((
+    NOTES = pp.Group(
         pp.Literal("(").suppress()
         + pp.CharsNotIn("()")
-        + pp.Literal(")").suppress()
-    ))("notes")
+        + pp.Literal(")").suppress(),
+    )("notes")
 
     INTERFACE = (
         pp.Word(pp.alphas, pp.alphas + pp.nums + ".")("name")
@@ -103,7 +104,7 @@ class BluezDocParser:
             if token == "required":
                 # Everything is required by default, so we can skip this.
                 continue
-            elif token in ("read-only", "readonly"):
+            if token in ("read-only", "readonly"):
                 tags.add("read")
             elif token in ("readwrite", "read-write", "read/write"):
                 tags.update(("read", "write"))
@@ -170,7 +171,8 @@ def type2python(t):
         if len(types) == 1:
             return f"list[{types[0]}]"
         return f"tuple[{''.join(types)}]"
-    raise ValueError(f"Unknown type: {t}")
+    msg = f"Unknown type: {t}"
+    raise ValueError(msg)
 
 
 # Types used in BlueZ documentation and their D-Bus signatures.
@@ -206,7 +208,8 @@ def type2signature(t):
         if len(types) == 1:
             return f"a{types[0]}"
         return f"a({''.join(types)})"
-    raise ValueError(f"Unknown type: {t}")
+    msg = f"Unknown type: {t}"
+    raise ValueError(msg)
 
 
 def list2python(lst):
@@ -230,13 +233,13 @@ ANNOTATIONS = {
 
 def annotate(element: ET.Element, annotations: set[str]):
     """Annotate an XML element with annotations."""
-    if set(("read", "write")) <= annotations:
+    if {"read", "write"} <= annotations:
         element.set("access", "readwrite")
     elif "read" in annotations:
         element.set("access", "read")
     elif "write" in annotations:
         element.set("access", "write")
-    for tag in annotations - set(("read", "write")):
+    for tag in annotations - {"read", "write"}:
         ET.SubElement(element, "annotation",
                       name=ANNOTATIONS[tag],
                       value="true")
@@ -340,7 +343,7 @@ for source in args.sources:
 if args.list:
     for iface in interfaces:
         print(iface.name)
-    exit()
+    sys.exit()
 
 TEMPLATE_HEADER = """
 # SPDX-FileCopyrightText: 2025 BlueZoo developers

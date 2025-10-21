@@ -47,6 +47,16 @@ select = [
   "E", "W", "F",
   # Consistent commas and quotes
   "COM", "Q",
+  # Simplify the code if possible
+  "C4", "RET", "SIM",
   # Ensure that scripts are executable
   "EXE",
+  # Check for common exception issues
+  "EM", "RSE",
+  # Check for common logging issues
+  "LOG", "G",
+  # Check for common optimization issues
+  "SLOT",
+  # Keep syntax up to date
+  "UP",
 ]

@@ -3,7 +3,7 @@
 
 import asyncio
 import os
-from typing import Any, BinaryIO, Optional
+from typing import Any, BinaryIO
 
 import sdbus
 
@@ -34,8 +34,8 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
         self.link = "LE"
 
         self.client_props_changed_subscription = events.Subscription()
-        self.f_read: Optional[BinaryIO] = None
-        self.f_write: Optional[BinaryIO] = None
+        self.f_read: BinaryIO | None = None
+        self.f_write: BinaryIO | None = None
 
     def __str__(self):
         return self.client.get_object_path()
@@ -70,7 +70,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
             fd, self.mtu = await self.client.AcquireWrite(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
-            self.f_write = open(os.dup(fd), "wb", buffering=0)
+            self.f_write = open(os.dup(fd), "wb", buffering=0)  # noqa: SIM115
             self.f_write.write(value)
         elif self.f_write is not None:
             # Write to the previously acquired file descriptor.
@@ -113,7 +113,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
             fd, self.mtu = await self.client.AcquireNotify(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
-            self.f_read = open(os.dup(fd), "r+b", buffering=0)
+            self.f_read = open(os.dup(fd), "r+b", buffering=0)  # noqa: SIM115
 
             def reader():
                 if data := self.f_read.read(self.mtu):

@@ -31,7 +31,8 @@ class BlueZooController(
     @dbus_method_async_except_logging
     async def AddAdapter(self, id: int, address: str) -> str:
         if id in self.mock.adapters:
-            raise BlueZooAlreadyExistsError("Already Exists")
+            msg = "Already Exists"
+            raise BlueZooAlreadyExistsError(msg)
         adapter = await self.mock.add_adapter(id, address)
         return adapter.get_object_path()
 
@@ -42,5 +43,6 @@ class BlueZooController(
     @dbus_method_async_except_logging
     async def RemoveAdapter(self, id: int):
         if id not in self.mock.adapters:
-            raise BlueZooDoesNotExistError("Does Not Exist")
+            msg = "Does Not Exist"
+            raise BlueZooDoesNotExistError(msg)
         await self.mock.del_adapter(id)

@@ -60,7 +60,8 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         logger.debug(f"Client {sender} requested to register advertisement {path}")
 
         if not self.__supported_instances:
-            raise DBusBluezNotPermittedError("Not Permitted")
+            msg = "Not Permitted"
+            raise DBusBluezNotPermittedError(msg)
 
         async def on_sender_lost():
             await self.__del_advertisement(adv)
@@ -82,7 +83,8 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         if adv := self.advertisements.get((sender, path)):
             await self.__del_advertisement(adv)
             return
-        raise DBusBluezDoesNotExistError("Does Not Exist")
+        msg = "Does Not Exist"
+        raise DBusBluezDoesNotExistError(msg)
 
     @sdbus.dbus_property_async_override()
     @dbus_property_async_except_logging

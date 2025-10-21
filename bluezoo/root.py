@@ -62,7 +62,8 @@ class RootManager(AgentManagerInterface):
 
         # Do not allow registering more than one agent per client.
         for sender in self.agents:
-            raise DBusBluezAlreadyExistsError("Already Exists")
+            msg = "Already Exists"
+            raise DBusBluezAlreadyExistsError(msg)
 
         async def on_sender_lost():
             await self.__del_agent(agent)
@@ -85,20 +86,20 @@ class RootManager(AgentManagerInterface):
     async def UnregisterAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to unregister agent {path}")
-        if agent := self.agents.get(sender):
-            if agent.get_object_path() == path:
-                await self.__del_agent(agent)
-                return
-        raise DBusBluezDoesNotExistError("Does Not Exist")
+        if (agent := self.agents.get(sender)) and agent.get_object_path() == path:
+            await self.__del_agent(agent)
+            return
+        msg = "Does Not Exist"
+        raise DBusBluezDoesNotExistError(msg)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def RequestDefaultAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to set {path} as default agent")
-        if agent := self.agents.get(sender):
-            if agent.get_object_path() == path:
-                logger.info(f"Setting {agent} as default agent")
-                self.agent = agent
-                return
-        raise DBusBluezDoesNotExistError("Does Not Exist")
+        if (agent := self.agents.get(sender)) and agent.get_object_path() == path:
+            logger.info(f"Setting {agent} as default agent")
+            self.agent = agent
+            return
+        msg = "Does Not Exist"
+        raise DBusBluezDoesNotExistError(msg)

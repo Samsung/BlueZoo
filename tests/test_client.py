@@ -25,7 +25,8 @@ class AsyncProcessContext:
         with contextlib.suppress(ProcessLookupError):
             self.proc.terminate()
         if x := await self.proc.wait():
-            raise RuntimeError(f"Process exited with status {x}")
+            msg = f"Process exited with status {x}"
+            raise RuntimeError(msg)
 
     async def __read(self, readline=False):
         if readline:
@@ -40,7 +41,8 @@ class AsyncProcessContext:
         while True:
             diff = timeout - (asyncio.get_event_loop().time() - start)
             if diff <= 0:
-                raise TimeoutError(f"Timeout waiting for '{data}' in output")
+                msg = f"Timeout waiting for '{data}' in output"
+                raise TimeoutError(msg)
             try:
                 line = await asyncio.wait_for(self.__read(eol), timeout=diff)
                 sys.stdout.buffer.write(line)
@@ -50,7 +52,7 @@ class AsyncProcessContext:
                 output += line
                 if needle in output:
                     break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue
         return output.decode(errors="ignore")
 

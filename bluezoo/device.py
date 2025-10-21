@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 import sdbus
 
@@ -107,7 +107,7 @@ class Device(DeviceInterface):
         # our adapter is trusted on the peer adapter.
         return self.is_br_edr and not self.peer.trusted
 
-    async def connect(self, uuid: Optional[str] = None) -> None:
+    async def connect(self, uuid: str | None = None) -> None:
 
         async def task():
             # Use the peer's adapter to connect with this device.
@@ -148,10 +148,10 @@ class Device(DeviceInterface):
             self.connecting_task = asyncio.create_task(task())
             async with asyncio.timeout(self.CONNECTING_TIMEOUT):
                 await self.connecting_task
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.info(f"Connecting with {self} timed out")
 
-    async def disconnect(self, uuid: Optional[str] = None) -> None:
+    async def disconnect(self, uuid: str | None = None) -> None:
         self.connecting_task.cancel()
         logger.info(f"Disconnecting {self}")
         await self.peer.Connected.set_async(False)
@@ -179,7 +179,7 @@ class Device(DeviceInterface):
             self.pairing_task = asyncio.create_task(task())
             async with asyncio.timeout(self.PAIRING_TIMEOUT):
                 await self.pairing_task
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.info(f"Pairing with {self} timed out")
 
     @sdbus.dbus_method_async_override()
