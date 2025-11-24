@@ -1,4 +1,11 @@
+<!--
+SPDX-FileCopyrightText: 2025 BlueZoo developers
+SPDX-License-Identifier: GPL-2.0-only
+-->
+
 # BlueZoo
+
+[![REUSE status](https://api.reuse.software/badge/github.com/Samsung/BlueZoo)](https://api.reuse.software/info/github.com/Samsung/BlueZoo)
 
 BlueZoo is a BlueZ D-Bus API mock, designed to test applications for BlueZ
 integration.

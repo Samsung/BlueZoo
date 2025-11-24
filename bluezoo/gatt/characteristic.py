@@ -70,7 +70,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
             fd, self.mtu = await self.client.AcquireWrite(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
-            self.f_write = open(os.dup(fd), "wb", buffering=0)  # noqa: SIM115
+            self.f_write = open(os.dup(fd), "wb", buffering=0)  # noqa: ASYNC230, SIM115
             self.f_write.write(value)
         elif self.f_write is not None:
             # Write to the previously acquired file descriptor.
@@ -113,7 +113,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
             fd, self.mtu = await self.client.AcquireNotify(self.__prepare_options({}))
             # Duplicate the file descriptor before opening the socket to
             # avoid closing the file descriptor by the D-Bus library.
-            self.f_read = open(os.dup(fd), "r+b", buffering=0)  # noqa: SIM115
+            self.f_read = open(os.dup(fd), "r+b", buffering=0)  # noqa: ASYNC230, SIM115
 
             def reader():
                 if data := self.f_read.read(self.mtu):

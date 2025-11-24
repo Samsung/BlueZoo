@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 BlueZoo developers
+# SPDX-License-Identifier: GPL-2.0-only
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
@@ -44,17 +47,26 @@ line-length = 99
 [tool.ruff.lint]
 select = [
   # Standard errors and warnings
-  "E", "W", "F",
+  "E",
+  "W",
+  "F",
+  # Ensure that async is used properly
+  "ASYNC",
   # Consistent commas and quotes
-  "COM", "Q",
+  "COM",
+  "Q",
   # Simplify the code if possible
-  "C4", "RET", "SIM",
+  "C4",
+  "RET",
+  "SIM",
   # Ensure that scripts are executable
   "EXE",
   # Check for common exception issues
-  "EM", "RSE",
+  "EM",
+  "RSE",
   # Check for common logging issues
-  "LOG", "G",
+  "LOG",
+  "G",
   # Check for common optimization issues
   "SLOT",
   # Keep syntax up to date

@@ -7,6 +7,7 @@ import weakref
 from collections.abc import Callable
 from enum import IntFlag
 from functools import wraps
+from typing import Literal
 
 import sdbus
 from sdbus.dbus_proxy_async_interfaces import DbusInterfaceCommonAsync
@@ -139,9 +140,10 @@ def dbus_method_async_except_logging(func):
         try:
             return await func(*args, **kwargs)
         except sdbus.SdBusBaseError:
-            raise  # Propagate D-Bus errors.
+            raise  # Propagate D-Bus errors without logging.
         except Exception:
             logger.exception(f"Error in D-Bus method {func.__name__}")
+            raise
     return wrapper
 
 
@@ -152,18 +154,22 @@ def dbus_property_async_except_logging(func):
         try:
             return func(*args, **kwargs)
         except sdbus.SdBusBaseError:
-            raise  # Propagate D-Bus errors.
+            raise  # Propagate D-Bus errors without logging.
         except Exception:
             logger.exception(f"Error in D-Bus property {func.__name__}")
+            raise
     return wrapper
 
 
-def setup_default_bus(address: str):
+def setup_default_bus(address: Literal["system", "session"]):
     """Set the default D-Bus bus based on the given address."""
     if address == "system":
         bus = sdbus.sd_bus_open_system()
-    if address == "session":
+    elif address == "session":
         bus = sdbus.sd_bus_open_user()
+    else:
+        msg = "Address must be either 'system' or 'session'"
+        raise ValueError(msg)
     sdbus.set_default_bus(bus)
     return bus
 

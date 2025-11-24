@@ -61,7 +61,7 @@ class RootManager(AgentManagerInterface):
         capability = capability or "KeyboardDisplay"  # Fallback to default capability.
 
         # Do not allow registering more than one agent per client.
-        for sender in self.agents:
+        if sender in self.agents:
             msg = "Already Exists"
             raise DBusBluezAlreadyExistsError(msg)
 

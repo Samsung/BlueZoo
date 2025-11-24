@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2025 BlueZoo developers
+SPDX-License-Identifier: GPL-2.0-only
+-->
+
 # Contributing to BlueZoo
 
 We welcome contributions to BlueZoo. Please follow the guidelines below.

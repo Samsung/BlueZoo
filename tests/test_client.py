@@ -33,7 +33,7 @@ class AsyncProcessContext:
             return await self.proc.stdout.readline()
         return await self.proc.stdout.read(4096)
 
-    async def expect(self, data: str, timeout=1.0, eol=True):
+    async def expect(self, data: str, timeout=1.0, eol=True):  # noqa: ASYNC109
         """Read output until expected text is found or timeout occurs."""
         output = b""
         needle = data.encode()

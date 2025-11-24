@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 BlueZoo developers
+# SPDX-License-Identifier: GPL-2.0-only
+
 name: Check Python Package
 
 on:
@@ -50,3 +53,12 @@ jobs:
         run: pip install ruff
       - name: Run linter
         run: ruff check
+
+  reuse:
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: REUSE Compliance Check
+        uses: fsfe/reuse-action@v6
