@@ -6,7 +6,8 @@ name: Check Conformance with BlueZ
 on:
   push:
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
   schedule:
     - cron: '45 6 * * 0'
 

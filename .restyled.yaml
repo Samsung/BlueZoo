@@ -2,14 +2,20 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 restylers:
-  - name: autopep8
-  - name: isort
+
+  - name: whitespace
+
+  - name: prettier-markdown
+  - name: prettier-yaml
+  - name: taplo  # TOML
+
+  # Python formatters
   - name: ruff
     command:
       - ruff
       - check
       - --fix-only
-  - name: prettier-markdown
-  - name: prettier-yaml
-  - name: taplo
-  - name: whitespace
+  # NOTE: The order here matters. Automatic fixes should be applied
+  #       before more general formatters like autopep8 and isort.
+  - name: autopep8
+  - name: isort

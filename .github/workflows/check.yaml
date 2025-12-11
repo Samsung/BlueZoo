@@ -6,7 +6,8 @@ name: Check Python Package
 on:
   push:
   pull_request:
-    branches: [ master ]
+    branches:
+      - master
 
 permissions:
   actions: read
@@ -52,7 +53,7 @@ jobs:
       - name: Install dependencies
         run: pip install ruff
       - name: Run linter
-        run: ruff check
+        run: ruff check --output-format=github
 
   reuse:
     strategy:
