@@ -59,20 +59,12 @@ class AsyncProcessContext:
         await self.proc.stdin.drain()
 
 
-async def client(*args, no_agent=False):
+async def client(*args, agent="NoInputNoOutput"):
     """Start bluetoothctl in a subprocess and return a context manager."""
-    proc = AsyncProcessContext(await asyncio.create_subprocess_exec(
-        "bluetoothctl", *args,
+    return AsyncProcessContext(await asyncio.create_subprocess_exec(
+        "bluetoothctl", f"--agent={agent}", *args,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE))
-    if no_agent:
-        # By default BlueZ client registers an agent on startup. However, we
-        # do not want to use this agent because it requires user interaction.
-        # Before we can unregister it, we need to wait for it to appear.
-        await proc.expect("Agent registered")
-        await proc.write("agent off")
-        await proc.expect("Agent unregistered")
-    return proc
 
 
 class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
@@ -105,294 +97,297 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         # contain the asyncTearDown() task only - we are in it right now.
         self.assertEqual(len(asyncio.all_tasks()), 1)
 
+    async def test_alias(self):
+        async with await client() as ctl:
+            await ctl.write("select 00:00:00:11:11:11")
+
+            await ctl.write("system-alias WaterDeer")
+            await ctl.expect("Changing WaterDeer succeeded")
+
+            await ctl.write("show")
+            await ctl.expect("Name: Alligator's Android")
+            await ctl.expect("Alias: WaterDeer")
+
     async def test_agent(self):
-        async with await client(no_agent=True) as proc:
+        async with await client() as ctl:
+            # Wait for the default agent to be registered.
+            await ctl.expect("Agent registered")
 
+            await ctl.write("agent off")
+            await ctl.expect("Agent unregistered")
             # Without an agent, pairing is not possible.
-            await proc.expect("Controller 00:00:00:11:11:11 Pairable: no")
-            await proc.expect("Controller 00:00:00:22:22:22 Pairable: no")
+            await ctl.expect("Controller 00:00:00:11:11:11 Pairable: no")
+            await ctl.expect("Controller 00:00:00:22:22:22 Pairable: no")
 
-            await proc.write("agent NoInputNoOutput")
-            await proc.expect("Agent registered")
-            await proc.expect("Controller 00:00:00:11:11:11 Pairable: yes")
-            await proc.expect("Controller 00:00:00:22:22:22 Pairable: yes")
+            await ctl.write("agent NoInputNoOutput")
+            await ctl.expect("Agent registered")
+            await ctl.expect("Controller 00:00:00:11:11:11 Pairable: yes")
+            await ctl.expect("Controller 00:00:00:22:22:22 Pairable: yes")
 
-            await proc.write("default-agent")
-            await proc.expect("Default agent request successful")
+            await ctl.write("default-agent")
+            await ctl.expect("Default agent request successful")
 
     async def test_discoverable(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("discoverable on")
-            await proc.expect("Changing discoverable on succeeded")
+            await ctl.write("discoverable on")
+            await ctl.expect("Changing discoverable on succeeded")
 
-            await proc.write("discoverable off")
-            await proc.expect("Changing discoverable off succeeded")
+            await ctl.write("discoverable off")
+            await ctl.expect("Changing discoverable off succeeded")
 
     async def test_discoverable_timeout(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("discoverable on")
+            await ctl.write("discoverable on")
             # Verify that the timeout works as expected.
-            await proc.write("discoverable-timeout 1")
-            await proc.expect("Discoverable: no", timeout=1.5)
+            await ctl.write("discoverable-timeout 1")
+            await ctl.expect("Discoverable: no", timeout=1.5)
 
     async def test_scan(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("discoverable on")
-            await proc.expect("Changing discoverable on succeeded")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("discoverable on")
+            await ctl.expect("Changing discoverable on succeeded")
 
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan on")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan on")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("scan off")
-            await proc.expect("Discovery stopped")
+            await ctl.write("scan off")
+            await ctl.expect("Discovery stopped")
 
     async def test_scan_le(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("advertise on")
-            await proc.expect("Advertising object registered")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("advertise on")
+            await ctl.expect("Advertising object registered")
 
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan le")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan le")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
     async def test_advertise_le(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("advertise.name BLE-Device")
-            await proc.write("advertise.appearance 0x00a0")
-            await proc.write("advertise.uuids 0xFFF1")
-            await proc.write("advertise.service 0xFFF1 0xDE 0xAD 0xBE 0xEF")
-            await proc.write("advertise.discoverable on")
-            await proc.write("advertise peripheral")
-            await proc.expect("Advertising object registered")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("advertise.name BLE-Device")
+            await ctl.write("advertise.appearance 0x00a0")
+            await ctl.write("advertise.uuids 0xFFF1")
+            await ctl.write("advertise.service 0xFFF1 0xDE 0xAD 0xBE 0xEF")
+            await ctl.write("advertise.discoverable on")
+            await ctl.write("advertise peripheral")
+            await ctl.expect("Advertising object registered")
 
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan le")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan le")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("info 00:00:00:11:11:11")
-            await proc.expect("Name: BLE-Device")
-            await proc.expect("Appearance: 0x00a0")
-            await proc.expect("ServiceData.0000fff1-0000-1000-8000-00805f9b34fb:")
+            await ctl.write("info 00:00:00:11:11:11")
+            await ctl.expect("Name: BLE-Device")
+            await ctl.expect("Appearance: 0x00a0")
+            await ctl.expect("ServiceData.0000fff1-0000-1000-8000-00805f9b34fb:")
 
             # Update the advertisement data and verify that the changes
             # are visible to the scanner.
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("advertise.name BLE-Device-42")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("advertise.name BLE-Device-42")
 
-            await proc.write("select 00:00:00:22:22:22")
+            await ctl.write("select 00:00:00:22:22:22")
             # The scan interval is 1 second, so we need to wait for the
             # scanner to pick up the new advertisement data.
-            await proc.expect("Name: BLE-Device-42", timeout=1.5)
+            await ctl.expect("Name: BLE-Device-42", timeout=1.5)
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("advertise off")
-            await proc.expect("Advertising object unregistered")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("advertise off")
+            await ctl.expect("Advertising object unregistered")
 
     async def test_gatt_application(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("gatt.register-service 0xF100")
-            await proc.expect("Primary (yes/no):", eol=False)
-            await proc.write("yes")
+            await ctl.write("gatt.register-service 0xF100")
+            await ctl.expect("Primary (yes/no):", eol=False)
+            await ctl.write("yes")
 
-            await proc.write("gatt.register-characteristic 0xF110 read,write")
-            await proc.expect("Enter value:", eol=False)
-            await proc.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
+            await ctl.write("gatt.register-characteristic 0xF110 read,write")
+            await ctl.expect("Enter value:", eol=False)
+            await ctl.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
 
-            await proc.write("gatt.register-characteristic 0xF120 read,notify")
-            await proc.expect("Enter value:", eol=False)
-            await proc.write("0x05 0x06 0x07 0x08")
+            await ctl.write("gatt.register-characteristic 0xF120 read,notify")
+            await ctl.expect("Enter value:", eol=False)
+            await ctl.write("0x05 0x06 0x07 0x08")
 
-            await proc.write("gatt.register-descriptor 0xF121 read")
-            await proc.expect("Enter value:", eol=False)
-            await proc.write("0x44 0x45 0x53 0x43 0x52 0x49 0x50 0x54 0x4F 0x52")
+            await ctl.write("gatt.register-descriptor 0xF121 read")
+            await ctl.expect("Enter value:", eol=False)
+            await ctl.write("0x44 0x45 0x53 0x43 0x52 0x49 0x50 0x54 0x4F 0x52")
 
-            await proc.write("gatt.register-application")
+            await ctl.write("gatt.register-application")
             # Verify that the service handle was assigned.
-            await proc.expect("/org/bluez/app/service0")
+            await ctl.expect("/org/bluez/app/service0")
             # Verify that new service was added to the adapter.
-            await proc.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
+            await ctl.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
 
-            await proc.write("gatt.unregister-application")
-            await proc.expect("Application unregistered")
+            await ctl.write("gatt.unregister-application")
+            await ctl.expect("Application unregistered")
 
     async def test_pair(self):
-        async with await client(no_agent=True) as proc:
+        async with await client() as ctl:
 
-            # Register agent for auto-pairing process.
-            await proc.write("agent NoInputNoOutput")
-            await proc.expect("Agent registered")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("discoverable on")
+            await ctl.expect("Changing discoverable on succeeded")
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("discoverable on")
-            await proc.expect("Changing discoverable on succeeded")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan on")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan on")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:11:11:11")
-
-            await proc.write("trust 00:00:00:11:11:11")
-            await proc.write("pair 00:00:00:11:11:11")
-            await proc.expect("Pairing successful")
+            await ctl.write("trust 00:00:00:11:11:11")
+            await ctl.write("pair 00:00:00:11:11:11")
+            await ctl.expect("Pairing successful")
 
             # Verify that the device is paired.
-            await proc.write("info 00:00:00:11:11:11")
-            await proc.expect("Device 00:00:00:11:11:11 (public)")
-            await proc.expect("Paired: yes")
-            await proc.expect("Trusted: yes")
+            await ctl.write("info 00:00:00:11:11:11")
+            await ctl.expect("Device 00:00:00:11:11:11 (public)")
+            await ctl.expect("Paired: yes")
+            await ctl.expect("Trusted: yes")
 
-            await proc.write("select 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:11:11:11")
             # Verify that the device is paired.
-            await proc.write("info 00:00:00:22:22:22")
-            await proc.expect("Device 00:00:00:22:22:22 (public)")
-            await proc.expect("Paired: yes")
+            await ctl.write("info 00:00:00:22:22:22")
+            await ctl.expect("Device 00:00:00:22:22:22 (public)")
+            await ctl.expect("Paired: yes")
 
     async def test_connect(self):
-        async with await client(no_agent=True) as proc:
+        async with await client() as ctl:
 
-            # Register agent for auto-pairing process.
-            await proc.write("agent NoInputNoOutput")
-            await proc.expect("Agent registered")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("discoverable on")
+            await ctl.expect("Changing discoverable on succeeded")
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("discoverable on")
-            await proc.expect("Changing discoverable on succeeded")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan on")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan on")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:11:11:11")
-
-            await proc.write("connect 00:00:00:11:11:11")
+            await ctl.write("connect 00:00:00:11:11:11")
             # The device is not trusted, so we need to accept the pairing.
-            await proc.expect("[agent] Accept pairing (yes/no):", eol=False)
-            await proc.write("yes")
+            await ctl.expect("[agent] Accept pairing (yes/no):", eol=False)
+            await ctl.write("yes")
 
-            await proc.expect("Connection successful")
+            await ctl.expect("Connection successful")
 
             # Verify that the device is connected.
-            await proc.write("info 00:00:00:11:11:11")
-            await proc.expect("Device 00:00:00:11:11:11 (public)")
-            await proc.expect("Connected: yes")
+            await ctl.write("info 00:00:00:11:11:11")
+            await ctl.expect("Device 00:00:00:11:11:11 (public)")
+            await ctl.expect("Connected: yes")
 
-            await proc.write("select 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:11:11:11")
             # Verify that the device is connected.
-            await proc.write("info 00:00:00:22:22:22")
-            await proc.expect("Device 00:00:00:22:22:22 (public)")
-            await proc.expect("Connected: yes")
+            await ctl.write("info 00:00:00:22:22:22")
+            await ctl.expect("Device 00:00:00:22:22:22 (public)")
+            await ctl.expect("Connected: yes")
 
     async def test_disconnect(self):
-        async with await client(no_agent=True) as proc:
+        async with await client() as ctl:
 
-            # Register agent for auto-pairing process.
-            await proc.write("agent NoInputNoOutput")
-            await proc.expect("Agent registered")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("discoverable on")
 
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("discoverable on")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan on")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan on")
-            await proc.expect("Device 00:00:00:11:11:11")
-
-            await proc.write("connect 00:00:00:11:11:11")
+            await ctl.write("connect 00:00:00:11:11:11")
             # The device is not trusted, so we need to accept the pairing.
-            await proc.expect("[agent] Accept pairing (yes/no):", eol=False)
-            await proc.write("yes")
+            await ctl.expect("[agent] Accept pairing (yes/no):", eol=False)
+            await ctl.write("yes")
 
-            await proc.expect("Connection successful")
+            await ctl.expect("Connection successful")
 
             # Remove the device - this should trigger disconnection.
-            await proc.write("remove 00:00:00:11:11:11")
-            await proc.expect("Device has been removed")
+            await ctl.write("remove 00:00:00:11:11:11")
+            await ctl.expect("Device has been removed")
 
             # The device is not longer available on our side, but verify that
             # on the other side (the other adapter) our device is disconnected.
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("info 00:00:00:22:22:22")
-            await proc.expect("Connected: no")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("info 00:00:00:22:22:22")
+            await ctl.expect("Connected: no")
 
     async def test_connect_gatt(self):
-        async with await client() as proc:
+        async with await client() as ctl:
 
-            await proc.write("select 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:11:11:11")
             # Setup GATT primary service.
-            await proc.write("gatt.register-service 0xF100")
-            await proc.expect("Primary (yes/no):", eol=False)
-            await proc.write("yes")
+            await ctl.write("gatt.register-service 0xF100")
+            await ctl.expect("Primary (yes/no):", eol=False)
+            await ctl.write("yes")
             # Setup GATT characteristic with read/write permissions.
-            await proc.write("gatt.register-characteristic 0xF110 read,write")
-            await proc.expect("Enter value:", eol=False)
-            await proc.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
+            await ctl.write("gatt.register-characteristic 0xF110 read,write")
+            await ctl.expect("Enter value:", eol=False)
+            await ctl.write("0x43 0x48 0x41 0x52 0x41 0x43 0x54 0x45 0x52")
             # Setup GATT characteristic with read/notify permissions.
-            await proc.write("gatt.register-characteristic 0xF120 read,notify")
-            await proc.expect("Enter value:", eol=False)
-            await proc.write("0x52 0x45 0x41 0x44")
+            await ctl.write("gatt.register-characteristic 0xF120 read,notify")
+            await ctl.expect("Enter value:", eol=False)
+            await ctl.write("0x52 0x45 0x41 0x44")
             # Setup GATT descriptor with read/write permissions.
-            await proc.write("gatt.register-descriptor 0xF121 read")
-            await proc.expect("Enter value:", eol=False)
-            await proc.write("0x44 0x45 0x53 0x43")
+            await ctl.write("gatt.register-descriptor 0xF121 read")
+            await ctl.expect("Enter value:", eol=False)
+            await ctl.write("0x44 0x45 0x53 0x43")
             # Register GATT application.
-            await proc.write("gatt.register-application")
+            await ctl.write("gatt.register-application")
             # Verify that new service was added to the adapter.
-            await proc.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
+            await ctl.expect("UUIDs: 0000f100-0000-1000-8000-00805f9b34fb")
             # Advertising GATT service on first adapter.
-            await proc.write("advertise.uuids 0xF100")
-            await proc.write("advertise.discoverable on")
-            await proc.write("advertise peripheral")
-            await proc.expect("Advertising object registered")
+            await ctl.write("advertise.uuids 0xF100")
+            await ctl.write("advertise.discoverable on")
+            await ctl.write("advertise peripheral")
+            await ctl.expect("Advertising object registered")
 
             # Scan for the GATT service on second adapter.
-            await proc.write("select 00:00:00:22:22:22")
-            await proc.write("scan le")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:11:11:11")
+            await ctl.write("select 00:00:00:22:22:22")
+            await ctl.write("scan le")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:11:11:11")
 
             # Connect to the GATT service.
-            await proc.write("connect 00:00:00:11:11:11")
-            await proc.expect("Connection successful")
+            await ctl.write("connect 00:00:00:11:11:11")
+            await ctl.expect("Connection successful")
 
             # Verify that we can read 0xF110 characteristic.
-            await proc.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
-            await proc.write("gatt.read")
-            await proc.expect("CHARACTER")
+            await ctl.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
+            await ctl.write("gatt.read")
+            await ctl.expect("CHARACTER")
             # Verify error when reading at invalid offset.
-            await proc.write("gatt.read 32")
-            await proc.expect("Failed to read: org.bluez.Error.InvalidOffset")
+            await ctl.write("gatt.read 32")
+            await ctl.expect("Failed to read: org.bluez.Error.InvalidOffset")
             # Verify that we can write at specified offset.
-            await proc.write("gatt.write '0x61 0x63 0x74' 4")
-            await proc.expect("act")
+            await ctl.write("gatt.write '0x61 0x63 0x74' 4")
+            await ctl.expect("act")
             # Verify that the value was correctly written.
-            await proc.write("gatt.read")
-            await proc.expect("CHARact")
+            await ctl.write("gatt.read")
+            await ctl.expect("CHARact")
 
             # Verify notifications from 0xF120 characteristic.
-            await proc.write("gatt.select-attribute 0000f120-0000-1000-8000-00805f9b34fb")
-            await proc.write("gatt.notify on")
-            await proc.expect("Notify started")
+            await ctl.write("gatt.select-attribute 0000f120-0000-1000-8000-00805f9b34fb")
+            await ctl.write("gatt.notify on")
+            await ctl.expect("Notify started")
 
             # Verify that we can read 0xF121 descriptor.
-            await proc.write("gatt.select-attribute 0000f121-0000-1000-8000-00805f9b34fb")
-            await proc.write("gatt.read")
-            await proc.expect("DESC")
+            await ctl.write("gatt.select-attribute 0000f121-0000-1000-8000-00805f9b34fb")
+            await ctl.write("gatt.read")
+            await ctl.expect("DESC")
             # Verify that we can write at specified offset.
-            await proc.write("gatt.write '0x4f 0x4e 0x45' 1")
+            await ctl.write("gatt.write '0x4f 0x4e 0x45' 1")
             # Verify that the value was correctly written.
-            await proc.write("gatt.read")
-            await proc.expect("DONE")
+            await ctl.write("gatt.read")
+            await ctl.expect("DONE")
 
     async def test_connect_gatt_indicate_call(self):
 
@@ -408,28 +403,28 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             stdout=asyncio.subprocess.PIPE))
         await adv.expect("Advertising 0xF100 on hci1")
 
-        async with srv, adv, await client() as proc:
+        async with srv, adv, await client() as ctl:
 
             # Scan for the GATT service on first adapter.
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("scan le")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:22:22:22")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("scan le")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:22:22:22")
 
             # Connect to the GATT service.
-            await proc.write("connect 00:00:00:22:22:22")
-            await proc.expect("Connection successful")
+            await ctl.write("connect 00:00:00:22:22:22")
+            await ctl.expect("Connection successful")
 
             # Verify notifications from 0xF001 characteristic.
-            await proc.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
-            await proc.write("gatt.notify on")
-            await proc.expect("Notify started")
+            await ctl.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
+            await ctl.write("gatt.notify on")
+            await ctl.expect("Notify started")
 
             # Verify that the indication was confirmed via D-Bus call.
             await srv.expect("Indication confirmed via D-Bus call")
 
-            await proc.write("gatt.notify off")
-            await proc.expect("Notify stopped")
+            await ctl.write("gatt.notify off")
+            await ctl.expect("Notify stopped")
 
     async def test_connect_gatt_indicate_socket(self):
 
@@ -445,28 +440,28 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             stdout=asyncio.subprocess.PIPE))
         await adv.expect("Advertising 0xF100 on hci1")
 
-        async with srv, adv, await client() as proc:
+        async with srv, adv, await client() as ctl:
 
             # Scan for the GATT service on first adapter.
-            await proc.write("select 00:00:00:11:11:11")
-            await proc.write("scan le")
-            await proc.expect("Discovery started")
-            await proc.expect("Device 00:00:00:22:22:22")
+            await ctl.write("select 00:00:00:11:11:11")
+            await ctl.write("scan le")
+            await ctl.expect("Discovery started")
+            await ctl.expect("Device 00:00:00:22:22:22")
 
             # Connect to the GATT service.
-            await proc.write("connect 00:00:00:22:22:22")
-            await proc.expect("Connection successful")
+            await ctl.write("connect 00:00:00:22:22:22")
+            await ctl.expect("Connection successful")
 
             # Verify notifications from 0xF001 characteristic.
-            await proc.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
-            await proc.write("gatt.notify on")
-            await proc.expect("Notify started")
+            await ctl.write("gatt.select-attribute 0000f110-0000-1000-8000-00805f9b34fb")
+            await ctl.write("gatt.notify on")
+            await ctl.expect("Notify started")
 
             # Verify that the indication was confirmed via socket.
             await srv.expect("Indication confirmation via socket: 01")
 
-            await proc.write("gatt.notify off")
-            await proc.expect("Notify stopped")
+            await ctl.write("gatt.notify off")
+            await ctl.expect("Notify stopped")
 
 
 if __name__ == "__main__":
