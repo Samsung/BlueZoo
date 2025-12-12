@@ -4,10 +4,10 @@
 import asyncio
 import logging
 from argparse import ArgumentParser
-from typing import Any
+from typing import Any, Literal
 
 import sdbus
-from sdbus.dbus_proxy_async_object_manager import DbusObjectManagerExportHandle
+from sdbus.dbus_proxy_async_interface_base import DbusExportHandle
 from sdbus_async.dbus_daemon import FreedesktopDbus
 
 from . import events
@@ -23,18 +23,20 @@ class BluezMockService:
 
     def __init__(self, adapter_auto_enable: bool, scan_interval: int):
 
+        # Keep track of exported objects to D-Bus.
+        self._exports: dict[Any, DbusExportHandle] = {}
+
         # Proxy for the D-Bus daemon interface used
         # for listening to ownership changes.
         self.dbus = FreedesktopDbus()
-        self.dbus_task = asyncio.create_task(self._service_lost_task())
+        self._dbus_task = asyncio.create_task(self._service_lost_task())
 
         # Register dedicated BlueZoo controller interface.
         self.bluezoo = BlueZooController(self)
-        self.bluezoo.export_to_dbus("/org/bluezoo")
+        self._exports[self.bluezoo] = self.bluezoo.export_to_dbus("/org/bluezoo")
 
         self.manager = sdbus.DbusObjectManagerInterfaceAsync()
-        self.manager_export_handles: dict[Any, DbusObjectManagerExportHandle] = {}
-        self.manager.export_to_dbus("/")
+        self._exports[self.manager] = self.manager.export_to_dbus("/")
 
         self.root = RootManager(self)
         self.export_object(self.root.get_object_path(), self.root)
@@ -46,7 +48,10 @@ class BluezMockService:
     async def cleanup(self):
         for id in list(self.adapters):
             await self.del_adapter(id)
-        self.dbus_task.cancel()
+        self.remove_object(self.root)
+        self._exports.pop(self.manager).stop()
+        self._exports.pop(self.bluezoo).stop()
+        self._dbus_task.cancel()
 
     async def _service_lost_task(self):
         async for _, old, new in self.dbus.name_owner_changed.catch():
@@ -57,11 +62,11 @@ class BluezMockService:
     def export_object(self, path: str, obj):
         """Export the object to D-Bus."""
         handle = self.manager.export_with_manager(path, obj)
-        self.manager_export_handles[obj] = handle
+        self._exports[obj] = handle
 
     def remove_object(self, obj):
         """Remove the object from D-Bus."""
-        handle = self.manager_export_handles.pop(obj)
+        handle = self._exports.pop(obj)
         handle.stop()
 
     async def add_adapter(self, id: int, address: str):
@@ -139,7 +144,7 @@ class BluezMockService:
         return asyncio.create_task(task())
 
 
-async def startup(bus: str = "system", adapters: list[str] = [],
+async def startup(bus: Literal["system", "session"] = "system", adapters: list[str] = [],
                   auto_enable: bool = False, scan_interval: int = 10):
 
     startup.bus = setup_default_bus(bus)

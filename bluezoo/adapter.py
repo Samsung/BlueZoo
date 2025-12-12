@@ -56,7 +56,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         self.discovering_task = NoneTask()
         self.uuids: list[str] = []
 
-        self.scan_subscribers = {}
+        self.scan_subscribers: dict[str, events.EventSubscriber] = {}
         self.scan_filter_uuids: list[str] = []
         self.scan_filter_transport = "auto"
         self.scan_filter_duplicate = False
@@ -119,6 +119,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     async def StartDiscovery(self) -> None:
         sender = sdbus.get_current_message().sender
         logger.info(f"Starting discovery on {self}")
+        assert sender is not None, "D-Bus message sender is None"
 
         async def on_sender_lost():
             self.scan_subscribers.pop(sender, None)
@@ -134,6 +135,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     @dbus_method_async_except_logging
     async def StopDiscovery(self) -> None:
         sender = sdbus.get_current_message().sender
+        assert sender is not None, "D-Bus message sender is None"
         if subscriber := self.scan_subscribers.pop(sender, None):
             subscriber.unsubscribe()
         await self.__stop_discovering()

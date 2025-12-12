@@ -48,6 +48,7 @@ class GattManager(GattManagerInterface):
                                   options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to register GATT application {application}")
+        assert sender is not None, "D-Bus message sender is None"
 
         async def on_sender_lost():
             await self.__del_gatt_application(app)
@@ -81,4 +82,5 @@ class GattManager(GattManagerInterface):
     async def UnregisterApplication(self, application: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to unregister GATT application {application}")
+        assert sender is not None, "D-Bus message sender is None"
         await self.__del_gatt_application(self.gatt_apps[sender, application])

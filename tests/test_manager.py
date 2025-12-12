@@ -1,12 +1,10 @@
+#!/usr/bin/env -S python3 -X faulthandler
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
-import logging
 import os
 import unittest
-
-import coloredlogs
 
 from bluezoo import bluezoo
 
@@ -15,6 +13,7 @@ async def client(*args):
     """Run bluetoothctl in a subprocess and return output."""
     proc = await asyncio.create_subprocess_exec(
         "bluetoothctl", *args, stdout=asyncio.subprocess.PIPE)
+    assert proc.stdout is not None, "Client process's stdout is None"
     return await proc.stdout.read()
 
 
@@ -42,6 +41,7 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
         self._bus = await asyncio.create_subprocess_exec(
             "dbus-daemon", "--session", "--print-address",
             stdout=asyncio.subprocess.PIPE)
+        assert self._bus.stdout is not None, "D-Bus daemon stdout is None"
         address = await self._bus.stdout.readline()
 
         # Update environment with D-Bus address.
@@ -85,5 +85,4 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == "__main__":
-    coloredlogs.install(logging.DEBUG)
     unittest.main()

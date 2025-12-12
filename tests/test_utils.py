@@ -1,10 +1,8 @@
+#!/usr/bin/env -S python3 -X faulthandler
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-import logging
 import unittest
-
-import coloredlogs
 
 from bluezoo.utils import BluetoothAddress, BluetoothClass, BluetoothUUID
 
@@ -65,5 +63,4 @@ class UtilsTestCase(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    coloredlogs.install(logging.DEBUG)
     unittest.main()

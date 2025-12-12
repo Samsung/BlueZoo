@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
-import logging
+import structlog
 
-logger = logging.getLogger(__package__)
+logger = structlog.getLogger(__package__)

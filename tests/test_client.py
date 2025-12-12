@@ -1,14 +1,12 @@
+#!/usr/bin/env -S python3 -X faulthandler
 # SPDX-FileCopyrightText: 2025 BlueZoo developers
 # SPDX-License-Identifier: GPL-2.0-only
 
 import asyncio
 import contextlib
-import logging
 import os
 import sys
 import unittest
-
-import coloredlogs
 
 from bluezoo import bluezoo
 
@@ -85,6 +83,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         self._bus = await asyncio.create_subprocess_exec(
             "dbus-daemon", "--session", "--print-address",
             stdout=asyncio.subprocess.PIPE)
+        assert self._bus.stdout is not None, "D-Bus daemon process's stdout is None"
         address = await self._bus.stdout.readline()
 
         # Force unbuffered output in all Python processes.
@@ -471,5 +470,4 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == "__main__":
-    coloredlogs.install(logging.DEBUG)
     unittest.main()

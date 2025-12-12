@@ -20,10 +20,10 @@ classifiers = [
   "Topic :: Software Development :: Testing :: Mocking",
 ]
 dependencies = [
-  "coloredlogs>=6.0.0",
   "pyventus>=0.7.0",
   "pyparsing>=3.0.0",
   "sdbus>=0.14.1",
+  "structlog>=20.1.0",
 ]
 
 [project.urls]

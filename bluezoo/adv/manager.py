@@ -58,6 +58,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to register advertisement {path}")
+        assert sender is not None, "D-Bus message sender is None"
 
         if not self.__supported_instances:
             msg = "Not Permitted"
@@ -80,6 +81,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     async def UnregisterAdvertisement(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to unregister advertisement {path}")
+        assert sender is not None, "D-Bus message sender is None"
         if adv := self.advertisements.get((sender, path)):
             await self.__del_advertisement(adv)
             return

@@ -30,7 +30,7 @@ class RootManager(AgentManagerInterface):
         # Default agent.
         self.agent = None
         # Agents registered by the clients.
-        self.agents = {}
+        self.agents: dict[str, AgentClient] = {}
 
     def get_object_path(self):
         return "/org/bluez"
@@ -46,7 +46,7 @@ class RootManager(AgentManagerInterface):
 
         if self.agents:
             # Promote the lastly registered agent to be the default one.
-            self.agent = list(self.agent.values())[-1]
+            self.agent = list(self.agents.values())[-1]
 
         if self.agent is None:
             # If there are no agents, the adapters cannot be pairable.
@@ -58,6 +58,7 @@ class RootManager(AgentManagerInterface):
     async def RegisterAgent(self, path: str, capability: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to register agent {path}")
+        assert sender is not None, "D-Bus message sender is None"
         capability = capability or "KeyboardDisplay"  # Fallback to default capability.
 
         # Do not allow registering more than one agent per client.
@@ -86,6 +87,7 @@ class RootManager(AgentManagerInterface):
     async def UnregisterAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to unregister agent {path}")
+        assert sender is not None, "D-Bus message sender is None"
         if (agent := self.agents.get(sender)) and agent.get_object_path() == path:
             await self.__del_agent(agent)
             return
@@ -97,6 +99,7 @@ class RootManager(AgentManagerInterface):
     async def RequestDefaultAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
         logger.debug(f"Client {sender} requested to set {path} as default agent")
+        assert sender is not None, "D-Bus message sender is None"
         if (agent := self.agents.get(sender)) and agent.get_object_path() == path:
             logger.info(f"Setting {agent} as default agent")
             self.agent = agent
