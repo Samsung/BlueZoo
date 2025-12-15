@@ -72,7 +72,8 @@ class BluezMockService:
     async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self, id, address)
         logger.info(f"Adding {adapter}")
-        self.export_object(adapter.get_object_path(), adapter)
+        for interface in adapter.get_interfaces():
+            self.export_object(adapter.get_object_path(), interface)
         self.adapters[id] = adapter
         if self.adapter_auto_enable:
             await adapter.Powered.set_async(True)
@@ -83,7 +84,8 @@ class BluezMockService:
         logger.info(f"Removing {adapter}")
         for device in list(adapter.devices.values()):
             await adapter.del_device(device)
-        self.remove_object(adapter)
+        for interface in adapter.get_interfaces():
+            self.remove_object(interface)
         await adapter.cleanup()
 
     def create_discovering_task(self, id: int):
@@ -115,8 +117,8 @@ class BluezMockService:
                     device = None
 
                     # Check if adapter has enabled LE advertising.
-                    if is_scan_le and len(adapter.advertisements):
-                        adv = next(iter(adapter.advertisements.values()))
+                    if is_scan_le and len(adapter.adv.advertisements):
+                        adv = next(iter(adapter.adv.advertisements.values()))
                         # The LE advertisement discoverable property is not mandatory,
                         # but if present, it overrides the adapter's property.
                         if not adv.Discoverable.get(is_adapter_discoverable):

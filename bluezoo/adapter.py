@@ -13,6 +13,7 @@ from .device import Device
 from .gatt import GattManager
 from .interfaces.Adapter import AdapterInterface
 from .log import logger
+from .media import MediaManager
 from .utils import (BluetoothClass, BluetoothUUID, NoneTask, create_background_task,
                     dbus_method_async_except_logging, dbus_property_async_except_logging)
 
@@ -27,7 +28,7 @@ TEST_NAMES = (
 )
 
 
-class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
+class Adapter(AdapterInterface):
 
     class PowerStateValue(StrEnum):
         On = "on"
@@ -39,6 +40,10 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
     def __init__(self, mock, id: int, address: str):
         super().__init__()
         self.mock = mock
+
+        self.adv = LEAdvertisingManager()
+        self.gatt = GattManager(self)
+        self.media = MediaManager()
 
         self.id = id
         self.address = address
@@ -69,14 +74,18 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
         return f"adapter[{self.id}][{self.address}]"
 
     async def cleanup(self):
-        await LEAdvertisingManager.cleanup(self)
-        await GattManager.cleanup(self)
+        await self.adv.cleanup()
+        await self.gatt.cleanup()
+        await self.media.cleanup()
         self.discoverable_task.cancel()
         self.pairable_task.cancel()
         self.discovering_task.cancel()
 
     def get_object_path(self):
         return f"/org/bluez/hci{self.id}"
+
+    def get_interfaces(self):
+        return (self, self.adv, self.gatt, self.media)
 
     @property
     def name(self):
@@ -88,7 +97,7 @@ class Adapter(LEAdvertisingManager, GattManager, AdapterInterface):
 
     async def update_uuids(self):
         uuids = set()
-        uuids.update(self.get_gatt_registered_primary_services())
+        uuids.update(self.gatt.get_primary_services())
         await self.UUIDs.set_async(list(uuids))
 
     async def add_device(self, device: Device):

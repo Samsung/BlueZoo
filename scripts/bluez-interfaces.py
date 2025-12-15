@@ -45,10 +45,12 @@ class Interface:
 class BluezDocParser:
     """BlueZ documentation D-Bus API parser."""
 
-    IDENTIFIER = pp.Word(pp.alphas, pp.alphas + pp.nums + "_")("name")
+    IDENTIFIER = pp.Word(pp.alphas, pp.alphanums + "_")("name")
 
     ARRAY = pp.Forward()
-    TYPE = (ARRAY | pp.Word(pp.alphas, pp.alphanums))("type")
+    # TODO: Type should not contain "_" character, however, BlueZ documentation
+    #       has some inconsistencies in this regard, e.g. "uint32_t".
+    TYPE = (ARRAY | pp.Word(pp.alphas, pp.alphanums + "_"))("type")
 
     PARAM = pp.Group(TYPE + pp.Optional(IDENTIFIER))("param")
 
@@ -74,7 +76,7 @@ class BluezDocParser:
     )("notes")
 
     INTERFACE = (
-        pp.Word(pp.alphas, pp.alphas + pp.nums + ".")("name")
+        pp.Word(pp.alphas, pp.alphanums + ".")("name")
         + pp.Optional(ANNOTATIONS)
     )
 
@@ -151,7 +153,8 @@ def type2python(t):
         return "bool"
     if t in ["signature", "object", "string"]:
         return "str"
-    if t in ["fd", "byte", "int16", "int32", "int64", "uint16", "uint32", "uint64"]:
+    if t in ["fd", "byte", "int16", "int16_t", "int32", "int32_t", "int64", "int64_t",
+             "uint16", "uint16_t", "uint32", "uint32_t", "uint64", "uint64_t"]:
         return "int"
     if t == "double":
         return "float"
@@ -184,16 +187,22 @@ TYPES = {
     "double": "d",
     "fd": "h",
     "int16": "n",
+    "int16_t": "n",
     "int32": "i",
+    "int32_t": "i",
     "int64": "x",
+    "int64_t": "x",
     "object": "o",
     "objects": "a{oa{sv}}",
     "properties": "a{sa{sv}}",
     "signature": "g",
     "string": "s",
     "uint16": "q",
+    "uint16_t": "q",
     "uint32": "u",
+    "uint32_t": "u",
     "uint64": "t",
+    "uint64_t": "t",
     "variant": "v",
     "void": None,
 }
@@ -249,7 +258,7 @@ def comment(parent: ET.Element, text: str):
     """Prepend a comment to the last child of an XML element."""
     if len(parent) == 1 or parent[-2].tag != ET.Comment:
         parent.insert(-1, ET.Comment(""))
-    current = parent[-2].text.strip().split()
+    current = (parent[-2].text or "").strip().split()
     current.extend(text.strip().split())
     parent[-2].text = " " + " ".join(current) + " "
 
@@ -268,7 +277,7 @@ args = parser.parse_args()
 re_section_interface = re.compile(r"^Interface$")
 re_section_methods = re.compile(r"^Methods$")
 re_section_signals = re.compile(r"^Signals$")
-re_section_properties = re.compile(r"^Properties$")
+re_section_properties = re.compile(r"^(MediaEndpoint )?Properties$")
 
 re_service = re.compile(r":Service:\s+(.+)")
 re_interface = re.compile(r":Interface:\s+(.+)")

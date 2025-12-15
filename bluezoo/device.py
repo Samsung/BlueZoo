@@ -122,7 +122,7 @@ class Device(DeviceInterface):
             await self.Connected.set_async(True)
 
             # Resolve LE services on the device.
-            for app in self.peer_adapter.gatt_apps.values():
+            for app in self.peer_adapter.gatt.apps.values():
                 links = {}
                 for obj_path, obj in sorted(app.objects.items(), key=lambda x: x[0]):
                     if isinstance(obj, GattServiceClient):

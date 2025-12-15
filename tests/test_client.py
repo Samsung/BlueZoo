@@ -12,6 +12,7 @@ from bluezoo import bluezoo
 
 
 class AsyncProcessContext:
+    """Async context manager for subprocesses."""
 
     def __init__(self, proc):
         self.proc = proc
@@ -31,7 +32,7 @@ class AsyncProcessContext:
             return await self.proc.stdout.readline()
         return await self.proc.stdout.read(4096)
 
-    async def expect(self, data: str, timeout=1.0, eol=True):  # noqa: ASYNC109
+    async def expect(self, data: str, timeout=1.0, eol=True) -> str:  # noqa: ASYNC109
         """Read output until expected text is found or timeout occurs."""
         output = b""
         needle = data.encode()
@@ -59,12 +60,24 @@ class AsyncProcessContext:
         await self.proc.stdin.drain()
 
 
-async def client(*args, agent="NoInputNoOutput"):
-    """Start bluetoothctl in a subprocess and return a context manager."""
-    return AsyncProcessContext(await asyncio.create_subprocess_exec(
-        "bluetoothctl", f"--agent={agent}", *args,
-        stdin=asyncio.subprocess.PIPE,
-        stdout=asyncio.subprocess.PIPE))
+class ClientContext(AsyncProcessContext):
+    """Async context manager for BlueZ client."""
+
+    def __init__(self, *args: str, agent="NoInputNoOutput"):
+        self.agent = agent
+        self.args = args
+
+    async def __aenter__(self):
+        self.proc = await asyncio.create_subprocess_exec(
+            "bluetoothctl", f"--agent={self.agent}", *self.args,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE)
+        return self
+
+    async def get_version(self) -> float:
+        """Get client version."""
+        await self.write("version")
+        return float((await self.expect("Version")).splitlines()[-1].split()[1])
 
 
 class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
@@ -98,7 +111,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(asyncio.all_tasks()), 1)
 
     async def test_alias(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
             await ctl.write("select 00:00:00:11:11:11")
 
             await ctl.write("system-alias WaterDeer")
@@ -109,7 +122,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Alias: WaterDeer")
 
     async def test_agent(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
             # Wait for the default agent to be registered.
             await ctl.expect("Agent registered")
 
@@ -128,7 +141,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Default agent request successful")
 
     async def test_discoverable(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("discoverable on")
             await ctl.expect("Changing discoverable on succeeded")
@@ -137,7 +150,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Changing discoverable off succeeded")
 
     async def test_discoverable_timeout(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("discoverable on")
             # Verify that the timeout works as expected.
@@ -145,7 +158,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Discoverable: no", timeout=1.5)
 
     async def test_scan(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             await ctl.write("discoverable on")
@@ -160,7 +173,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Discovery stopped")
 
     async def test_scan_le(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             await ctl.write("advertise on")
@@ -172,7 +185,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Device 00:00:00:11:11:11")
 
     async def test_advertise_le(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             await ctl.write("advertise.name BLE-Device")
@@ -208,7 +221,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Advertising object unregistered")
 
     async def test_gatt_application(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("gatt.register-service 0xF100")
             await ctl.expect("Primary (yes/no):", eol=False)
@@ -236,7 +249,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Application unregistered")
 
     async def test_pair(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             await ctl.write("discoverable on")
@@ -264,7 +277,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Paired: yes")
 
     async def test_connect(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             await ctl.write("discoverable on")
@@ -294,7 +307,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Connected: yes")
 
     async def test_disconnect(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             await ctl.write("discoverable on")
@@ -321,7 +334,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Connected: no")
 
     async def test_connect_gatt(self):
-        async with await client() as ctl:
+        async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
             # Setup GATT primary service.
@@ -403,7 +416,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             stdout=asyncio.subprocess.PIPE))
         await adv.expect("Advertising 0xF100 on hci1")
 
-        async with srv, adv, await client() as ctl:
+        async with srv, adv, ClientContext() as ctl:
 
             # Scan for the GATT service on first adapter.
             await ctl.write("select 00:00:00:11:11:11")
@@ -440,7 +453,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             stdout=asyncio.subprocess.PIPE))
         await adv.expect("Advertising 0xF100 on hci1")
 
-        async with srv, adv, await client() as ctl:
+        async with srv, adv, ClientContext() as ctl:
 
             # Scan for the GATT service on first adapter.
             await ctl.write("select 00:00:00:11:11:11")
@@ -462,6 +475,41 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
             await ctl.write("gatt.notify off")
             await ctl.expect("Notify stopped")
+
+    async def test_media_endpoint(self):
+        async with ClientContext() as ctl:
+
+            # This check requires BlueZ >= 5.86 due to a bug in the player subsystem
+            # of the client code - it does not support multiple adapters.
+            if await ctl.get_version() < 5.86:
+                self.skipTest("Test case requires BlueZ >= 5.86")
+
+            uuid = "0000110a-0000-1000-8000-00805f9b34fb"  # Audio Sink
+            await ctl.write(f"endpoint.register {uuid} 0x00 '0xFF 0xFF 0x02 0x40'")
+            await ctl.expect("Enter Metadata", eol=False)
+            await ctl.write("no")
+            await ctl.expect("Auto Accept", eol=False)
+            await ctl.write("no")
+            await ctl.expect("Max Transports", eol=False)
+            await ctl.write("auto")
+            await ctl.expect("Locations", eol=False)
+            await ctl.write("0")
+            await ctl.expect("Supported Context", eol=False)
+            await ctl.write("0")
+            await ctl.expect("Context", eol=False)
+            await ctl.write("0")
+            await ctl.expect("CIG", eol=False)
+            await ctl.write("auto")
+            await ctl.expect("CIS", eol=False)
+            await ctl.write("auto")
+            # Verify that the endpoint was registered on both adapters.
+            await ctl.expect("Endpoint /local/endpoint/ep0 registered")
+            await ctl.expect("Endpoint /local/endpoint/ep0 registered")
+
+            await ctl.write("endpoint.unregister /local/endpoint/ep0")
+            # Verify that endpoint was deregistered on both adapters.
+            await ctl.expect("Endpoint /local/endpoint/ep0 unregistered")
+            await ctl.expect("Endpoint /local/endpoint/ep0 unregistered")
 
 
 if __name__ == "__main__":

@@ -69,6 +69,10 @@ class DBusBluezInProgressError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.InProgress"
 
 
+class DBusBluezInvalidArgsError(sdbus.DbusFailedError):
+    dbus_error_name = "org.bluez.Error.InvalidArgs"
+
+
 class DBusBluezInvalidArgumentsError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.InvalidArguments"
 
@@ -79,6 +83,10 @@ class DBusBluezInvalidLengthError(sdbus.DbusFailedError):
 
 class DBusBluezInvalidOffsetError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.InvalidOffset"
+
+
+class DBusBluezInvalidStateError(sdbus.DbusFailedError):
+    dbus_error_name = "org.bluez.Error.InvalidState"
 
 
 class DBusBluezInvalidValueLengthError(sdbus.DbusFailedError):

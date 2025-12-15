@@ -116,11 +116,11 @@ gdbus call --system \
 | org.bluez.LEAdvertisingManager1        |    ✅     |       |
 | org.bluez.MediaAssistant1              |     -     |       |
 | org.bluez.MediaControl1                |     -     |       |
-| org.bluez.MediaEndpoint1               |     -     |       |
+| org.bluez.MediaEndpoint1               |    ✅     |       |
 | org.bluez.MediaFolder1                 |     -     |       |
 | org.bluez.MediaItem1                   |     -     |       |
 | org.bluez.MediaPlayer1                 |     -     |       |
-| org.bluez.Media1                       |     -     |       |
+| org.bluez.Media1                       |    ✅     |       |
 | org.bluez.MediaTransport1              |     -     |       |
 | org.bluez.Network1                     |     -     |       |
 | org.bluez.NetworkServer1               |     -     |       |
