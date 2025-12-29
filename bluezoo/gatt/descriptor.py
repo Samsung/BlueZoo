@@ -45,14 +45,14 @@ class GattDescriptorClientLink(GattDescriptorInterface):
     @dbus_method_async_except_logging
     async def ReadValue(self, options: dict[str, tuple[str, Any]]) -> bytes:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to read value of {self}")
+        logger.debug("Client %s requested to read value of %s", sender, self)
         return await self.client.ReadValue(self.__prepare_options(options))
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to write value of {self}")
+        logger.debug("Client %s requested to write value of %s", sender, self)
         await self.client.WriteValue(value, self.__prepare_options(options))
 
     @sdbus.dbus_property_async_override()

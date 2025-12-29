@@ -109,7 +109,7 @@ gdbus call --system \
 | org.bluez.GattCharacteristic1          |    ✅     |       |
 | org.bluez.GattDescriptor1              |    ✅     |       |
 | org.bluez.GattManager1                 |    ✅     |       |
-| org.bluez.GattProfile1                 |     -     |       |
+| org.bluez.GattProfile1                 |    ✅     |       |
 | org.bluez.GattService1                 |    ✅     |       |
 | org.bluez.Input1                       |     -     |       |
 | org.bluez.LEAdvertisement1             |    ✅     |       |

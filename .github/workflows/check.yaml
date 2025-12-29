@@ -9,6 +9,9 @@ on:
     branches:
       - master
 
+env:
+  MAKEFLAGS: -j8
+
 permissions:
   actions: read
   contents: read
@@ -16,16 +19,48 @@ permissions:
 
 jobs:
 
-  check:
+  check-prepare:
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          repository: bluez/bluez
+      - uses: actions/cache@v5
+        id: cache
+        with:
+          key: bluez-client
+          path: "${{ github.workspace }}/bluez-install"
+      - name: Build BlueZ command line tools
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo sed -i 's/^Types: deb$/Types: deb deb-src/' /etc/apt/sources.list.d/ubuntu.sources
+          sudo apt update && sudo apt-get build-dep bluez
+          ./bootstrap
+          ./configure --prefix="${{ github.workspace }}/bluez-install" \
+            --disable-manpages \
+            --disable-monitor \
+            --disable-systemd \
+            --disable-tools \
+            --disable-udev
+          make && make install
+
+  check:
+    needs: check-prepare
+    strategy:
+      fail-fast: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/cache@v5
+        with:
+          key: bluez-client
+          path: ${{ github.workspace }}/bluez-install
+      - run: echo "${{ github.workspace }}/bluez-install/bin" >> $GITHUB_PATH
       - uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: >
-            bluez
             tox
       - name: Run Tests
         run: tox -e py3

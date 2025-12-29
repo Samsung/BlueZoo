@@ -101,25 +101,36 @@ class Adapter(AdapterInterface):
         await self.UUIDs.set_async(list(uuids))
 
     async def add_device(self, device: Device):
+        """Add (or update) a device to the adapter."""
         device.attach_to_adapter(self)
+
         path = device.get_object_path()
         if path in self.devices:
-            logger.debug(f"Updating {device} in {self}")
+            logger.debug("Updating %s in %s", device, self)
             await self.devices[path].properties_sync(device)
             return
-        logger.info(f"Adding {device} to {self}")
+
+        logger.info("Adding %s to %s", device, self)
         self.mock.export_object(path, device)
         self.devices[path] = device
 
+        uuids = set()
+        uuids.update(self.gatt.get_autoconnect_services())
+        # Check if the new device has any service that is marked
+        # for automatic connection, and connect to it if so.
+        if uuids.intersection(device.uuids):
+            logger.info("Auto-connecting to %s on %s", device, self)
+            await device.connect()
+
     async def del_device(self, device: Device):
         await device.disconnect()
-        logger.info(f"Removing {device} from {self}")
+        logger.info("Removing %s from %s", device, self)
         self.devices.pop(device.get_object_path())
         self.mock.remove_object(device)
         await device.cleanup()
 
     async def __stop_discovering(self):
-        logger.info(f"Stopping discovery on {self}")
+        logger.info("Stopping discovery on %s", self)
         self.discovering_task.cancel()
         await self.Discovering.set_async(False)
 
@@ -127,7 +138,7 @@ class Adapter(AdapterInterface):
     @dbus_method_async_except_logging
     async def StartDiscovery(self) -> None:
         sender = sdbus.get_current_message().sender
-        logger.info(f"Starting discovery on {self}")
+        logger.info("Starting discovery on %s", self)
         assert sender is not None, "D-Bus message sender is None"
 
         async def on_sender_lost():
@@ -257,7 +268,7 @@ class Adapter(AdapterInterface):
                 await self.Discoverable.set_async(False)
             # If timeout is non-zero, set up cancellation task.
             if timeout := self.discoverable_timeout:
-                logger.info(f"Setting {self} as discoverable for {timeout} seconds")
+                logger.info("Setting %s as discoverable for %d seconds", self, timeout)
                 self.discoverable_task = asyncio.create_task(task())
 
     @sdbus.dbus_property_async_override()
@@ -289,7 +300,7 @@ class Adapter(AdapterInterface):
                 await self.Pairable.set_async(False)
             # If timeout is non-zero, set up cancellation task.
             if timeout := self.pairable_timeout:
-                logger.info(f"Setting {self} as pairable for {timeout} seconds")
+                logger.info("Setting %s as pairable for %d seconds", self, timeout)
                 self.pairable_task = asyncio.create_task(task())
 
     @sdbus.dbus_property_async_override()

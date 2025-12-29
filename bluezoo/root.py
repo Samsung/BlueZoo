@@ -36,7 +36,7 @@ class RootManager(AgentManagerInterface):
         return "/org/bluez"
 
     async def __del_agent(self, agent: AgentClient):
-        logger.info(f"Unregistering {agent}")
+        logger.info("Unregistering %s", agent)
 
         if agent == self.agent:
             self.agent = None
@@ -57,7 +57,7 @@ class RootManager(AgentManagerInterface):
     @dbus_method_async_except_logging
     async def RegisterAgent(self, path: str, capability: str) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to register agent {path}")
+        logger.debug("Client %s requested to register agent %s", sender, path)
         assert sender is not None, "D-Bus message sender is None"
         capability = capability or "KeyboardDisplay"  # Fallback to default capability.
 
@@ -70,10 +70,10 @@ class RootManager(AgentManagerInterface):
             await self.__del_agent(agent)
 
         agent = AgentClient(sender, path, capability, on_sender_lost)
-        logger.info(f"Registering {agent}")
+        logger.info("Registering %s", agent)
 
         if self.agent is None:
-            logger.info(f"Setting {agent} as default agent")
+            logger.info("Setting %s as default agent", agent)
             self.agent = agent
         self.agents[sender] = agent
 
@@ -86,7 +86,7 @@ class RootManager(AgentManagerInterface):
     @dbus_method_async_except_logging
     async def UnregisterAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to unregister agent {path}")
+        logger.debug("Client %s requested to unregister agent %s", sender, path)
         assert sender is not None, "D-Bus message sender is None"
         if (agent := self.agents.get(sender)) and agent.get_object_path() == path:
             await self.__del_agent(agent)
@@ -98,10 +98,10 @@ class RootManager(AgentManagerInterface):
     @dbus_method_async_except_logging
     async def RequestDefaultAgent(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to set {path} as default agent")
+        logger.debug("Client %s requested to set %s as default agent", sender, path)
         assert sender is not None, "D-Bus message sender is None"
         if (agent := self.agents.get(sender)) and agent.get_object_path() == path:
-            logger.info(f"Setting {agent} as default agent")
+            logger.info("Setting %s as default agent", agent)
             self.agent = agent
             return
         msg = "Does Not Exist"

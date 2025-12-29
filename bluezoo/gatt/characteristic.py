@@ -55,7 +55,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def ReadValue(self, options: dict[str, tuple[str, Any]]) -> bytes:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to read value of {self}")
+        logger.debug("Client %s requested to read value of %s", sender, self)
         return await self.client.ReadValue(self.__prepare_options(options))
 
     @sdbus.dbus_method_async_override()
@@ -63,7 +63,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
         acquired = self.client.WriteAcquired.get()
-        logger.debug(f"Client {sender} requested to write value of {self}")
+        logger.debug("Client %s requested to write value of %s", sender, self)
         if acquired is None:
             await self.client.WriteValue(value, self.__prepare_options(options))
         elif not acquired:
@@ -80,14 +80,14 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def AcquireWrite(self, options: dict[str, tuple[str, Any]]) -> tuple[int, int]:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to acquire write of {self}")
+        logger.debug("Client %s requested to acquire write of %s", sender, self)
         return await self.client.AcquireWrite(options)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
     async def AcquireNotify(self, options: dict[str, tuple[str, Any]]) -> tuple[int, int]:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to acquire notify of {self}")
+        logger.debug("Client %s requested to acquire notify of %s", sender, self)
         return await self.client.AcquireNotify(options)
 
     @sdbus.dbus_method_async_override()
@@ -95,7 +95,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     async def StartNotify(self) -> None:
         sender = sdbus.get_current_message().sender
         acquired = self.client.NotifyAcquired.get()
-        logger.debug(f"Client {sender} requested to start notification of {self}")
+        logger.debug("Client %s requested to start notification of %s", sender, self)
 
         if acquired is None and not self.client.Notifying.get():
 
@@ -135,7 +135,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     async def StopNotify(self) -> None:
         sender = sdbus.get_current_message().sender
         acquired = self.client.NotifyAcquired.get()
-        logger.debug(f"Client {sender} requested to stop notification of {self}")
+        logger.debug("Client %s requested to stop notification of %s", sender, self)
         if acquired is None:
             await self.client.StopNotify()
             self.client_props_changed_subscription.unsubscribe()
@@ -150,7 +150,7 @@ class GattCharacteristicClientLink(GattCharacteristicInterface):
     @dbus_method_async_except_logging
     async def Confirm(self) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} confirmed {self}")
+        logger.debug("Client %s confirmed %s", sender, self)
         return await self.client.Confirm()
 
     @sdbus.dbus_property_async_override()

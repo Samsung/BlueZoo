@@ -5,6 +5,7 @@ from .application import GattApplicationClient
 from .characteristic import GattCharacteristicClient, GattCharacteristicClientLink
 from .descriptor import GattDescriptorClient, GattDescriptorClientLink
 from .manager import GattManager
+from .profile import GattProfileClient
 from .service import GattServiceClient, GattServiceClientLink
 
 __all__ = [
@@ -14,6 +15,7 @@ __all__ = [
     "GattDescriptorClient",
     "GattDescriptorClientLink",
     "GattManager",
+    "GattProfileClient",
     "GattServiceClient",
     "GattServiceClientLink",
 ]

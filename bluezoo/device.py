@@ -7,7 +7,8 @@ from typing import Any
 import sdbus
 
 from .gatt import (GattCharacteristicClient, GattCharacteristicClientLink, GattDescriptorClient,
-                   GattDescriptorClientLink, GattServiceClient, GattServiceClientLink)
+                   GattDescriptorClientLink, GattProfileClient, GattServiceClient,
+                   GattServiceClientLink)
 from .interfaces.Device import DeviceInterface
 from .log import logger
 from .utils import NoneTask, dbus_method_async_except_logging, dbus_property_async_except_logging
@@ -111,7 +112,7 @@ class Device(DeviceInterface):
 
         async def task():
             # Use the peer's adapter to connect with this device.
-            logger.info(f"Connecting {self} with {self.adapter}")
+            logger.info("Connecting %s with %s", self, self.adapter)
 
             if self.connect_check_authorization_required(uuid):
                 await self.peer_adapter.mock.root.agent.RequestAuthorization(
@@ -125,11 +126,13 @@ class Device(DeviceInterface):
             for app in self.peer_adapter.gatt.apps.values():
                 links = {}
                 for obj_path, obj in sorted(app.objects.items(), key=lambda x: x[0]):
+                    if isinstance(obj, GattProfileClient):
+                        continue
                     if isinstance(obj, GattServiceClient):
                         link = GattServiceClientLink(obj, self)
-                    if isinstance(obj, GattCharacteristicClient):
+                    elif isinstance(obj, GattCharacteristicClient):
                         link = GattCharacteristicClientLink(obj, links[obj.Service.get()])
-                    if isinstance(obj, GattDescriptorClient):
+                    elif isinstance(obj, GattDescriptorClient):
                         link = GattDescriptorClientLink(obj, links[obj.Characteristic.get()])
                     # Export the link with the manager.
                     self.peer_adapter.mock.export_object(link.get_object_path(), link)
@@ -149,11 +152,11 @@ class Device(DeviceInterface):
             async with asyncio.timeout(self.CONNECTING_TIMEOUT):
                 await self.connecting_task
         except TimeoutError:
-            logger.info(f"Connecting with {self} timed out")
+            logger.info("Connecting with %s timed out", self)
 
     async def disconnect(self, uuid: str | None = None) -> None:
         self.connecting_task.cancel()
-        logger.info(f"Disconnecting {self}")
+        logger.info("Disconnecting %s", self)
         await self.peer.Connected.set_async(False)
         await self.Connected.set_async(False)
 
@@ -161,7 +164,7 @@ class Device(DeviceInterface):
 
         async def task():
             # Use the peer's adapter to pair with this device.
-            logger.info(f"Pairing {self} with {self.adapter}")
+            logger.info("Pairing %s with %s", self, self.adapter)
             if self.adapter.mock.root.agent.capability == "NoInputNoOutput":
                 # There is no user interface to confirm the pairing.
                 pass
@@ -180,7 +183,7 @@ class Device(DeviceInterface):
             async with asyncio.timeout(self.PAIRING_TIMEOUT):
                 await self.pairing_task
         except TimeoutError:
-            logger.info(f"Pairing with {self} timed out")
+            logger.info("Pairing with %s timed out", self)
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
@@ -211,7 +214,7 @@ class Device(DeviceInterface):
     @dbus_method_async_except_logging
     async def CancelPairing(self) -> None:
         if not self.pairing_task.done():
-            logger.info(f"Canceling pairing with {self}")
+            logger.info("Canceling pairing with %s", self)
         self.pairing_task.cancel()
 
     @sdbus.dbus_method_async_override()

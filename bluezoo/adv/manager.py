@@ -44,7 +44,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
 
     async def __del_advertisement(self, adv: LEAdvertisementClient):
-        logger.info(f"Removing {adv}")
+        logger.info("Removing %s", adv)
 
         self.advertisements.pop((adv.get_client(), adv.get_object_path()))
         await adv.cleanup()
@@ -57,7 +57,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     async def RegisterAdvertisement(self, path: str,
                                     options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to register advertisement {path}")
+        logger.debug("Client %s requested to register advertisement %s", sender, path)
         assert sender is not None, "D-Bus message sender is None"
 
         if not self.__supported_instances:
@@ -70,7 +70,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         adv = LEAdvertisementClient(sender, path, options, on_sender_lost)
         await adv.properties_setup_sync_task()
 
-        logger.info(f"Registering {adv}")
+        logger.info("Registering %s", adv)
         self.advertisements[sender, path] = adv
 
         await self.ActiveInstances.set_async(len(self.advertisements))
@@ -80,7 +80,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     @dbus_method_async_except_logging
     async def UnregisterAdvertisement(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to unregister advertisement {path}")
+        logger.debug("Client %s requested to unregister advertisement %s", sender, path)
         assert sender is not None, "D-Bus message sender is None"
         if adv := self.advertisements.get((sender, path)):
             await self.__del_advertisement(adv)

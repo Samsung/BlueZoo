@@ -48,7 +48,7 @@ class GattApplicationClient(DBusClientMixin, sdbus.DbusObjectManagerInterfaceAsy
         async def catch_interfaces_removed():
             async for path, _ in self.interfaces_removed.catch():
                 if self.objects.pop(path, None):
-                    logger.debug(f"Object removed from GATT application {path}")
+                    logger.debug("Object removed from GATT application %s", path)
                     await self.interfaces_removed_callback()
 
         self.interfaces_removed_task = asyncio.create_task(catch_interfaces_removed())

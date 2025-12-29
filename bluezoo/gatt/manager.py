@@ -13,6 +13,7 @@ from ..utils import BluetoothUUID, dbus_method_async_except_logging
 from .application import GattApplicationClient
 from .characteristic import GattCharacteristicClient
 from .descriptor import GattDescriptorClient
+from .profile import GattProfileClient
 from .service import GattServiceClient
 
 
@@ -33,10 +34,18 @@ class GattManager(GattManagerInterface):
             await app.cleanup()
 
     async def __del_gatt_application(self, app: GattApplicationClient) -> None:
-        logger.info(f"Removing GATT application {app.get_object_path()}")
+        logger.info("Removing GATT application %s", app.get_object_path())
         self.apps.pop((app.get_client(), app.get_object_path()), None)
         await app.cleanup()
         await self._adapter.update_uuids()
+
+    def get_autoconnect_services(self) -> Iterable[BluetoothUUID]:
+        """Get UUIDs of all services marked for autoconnect."""
+        for app in self.apps.values():
+            for obj in app.objects.values():
+                if isinstance(obj, GattProfileClient):
+                    for uuid in obj.UUIDs.get():
+                        yield BluetoothUUID(uuid)
 
     def get_primary_services(self) -> Iterable[BluetoothUUID]:
         """Get UUIDs of all registered primary services."""
@@ -47,23 +56,25 @@ class GattManager(GattManagerInterface):
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
-    async def RegisterApplication(self, application: str,
+    async def RegisterApplication(self, path: str,
                                   options: dict[str, tuple[str, Any]]) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to register GATT application {application}")
+        logger.debug("Client %s requested to register GATT application %s", sender, path)
         assert sender is not None, "D-Bus message sender is None"
 
         async def on_sender_lost():
             await self.__del_gatt_application(app)
 
-        app = GattApplicationClient(sender, application, options, on_sender_lost)
+        app = GattApplicationClient(sender, path, options, on_sender_lost)
         await app.object_manager_setup_sync_task(
-            (GattServiceClient, GattCharacteristicClient, GattDescriptorClient))
+            (GattServiceClient, GattCharacteristicClient, GattDescriptorClient, GattProfileClient))
 
-        logger.info(f"Adding GATT application {app.get_object_path()}")
-        self.apps[sender, application] = app
+        logger.info("Adding GATT application %s", app.get_object_path())
+        self.apps[sender, path] = app
 
         for obj in app.objects.values():
+            if isinstance(obj, GattProfileClient):
+                continue
             # Assign handle values to objects that don't have one.
             if obj.Handle.get() == 0:
                 self._handle_counter += 1
@@ -82,11 +93,11 @@ class GattManager(GattManagerInterface):
 
     @sdbus.dbus_method_async_override()
     @dbus_method_async_except_logging
-    async def UnregisterApplication(self, application: str) -> None:
+    async def UnregisterApplication(self, path: str) -> None:
         sender = sdbus.get_current_message().sender
-        logger.debug(f"Client {sender} requested to unregister GATT application {application}")
+        logger.debug("Client %s requested to unregister GATT application %s", sender, path)
         assert sender is not None, "D-Bus message sender is None"
-        if app := self.apps.get((sender, application)):
+        if app := self.apps.get((sender, path)):
             await self.__del_gatt_application(app)
             return
         msg = "Does Not Exist"

@@ -333,7 +333,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.write("info 00:00:00:22:22:22")
             await ctl.expect("Connected: no")
 
-    async def test_connect_gatt(self):
+    async def test_gatt_connect(self):
         async with ClientContext() as ctl:
 
             await ctl.write("select 00:00:00:11:11:11")
@@ -402,7 +402,36 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.write("gatt.read")
             await ctl.expect("DONE")
 
-    async def test_connect_gatt_indicate_call(self):
+    async def test_gatt_autoconnect(self):
+        async with ClientContext() as ctl:
+
+            await ctl.write("select 00:00:00:11:11:11")
+            # Setup GATT primary service on first adapter.
+            await ctl.write("gatt.register-service 0xF100")
+            await ctl.expect("Primary (yes/no):", eol=False)
+            await ctl.write("yes")
+            # Register GATT application.
+            await ctl.write("gatt.register-application")
+            await ctl.expect("Application registered")
+            # Advertise registered GATT service.
+            await ctl.write("advertise.uuids 0xF100")
+            await ctl.write("advertise.discoverable on")
+            await ctl.write("advertise peripheral")
+            await ctl.expect("Advertising object registered")
+
+            await ctl.write("select 00:00:00:22:22:22")
+            # Setup GATT service auto-connection on second adapter.
+            await ctl.write("gatt.register-application 0xF100")
+            await ctl.expect("Application registered")
+
+            # Scan for the GATT service on second adapter.
+            await ctl.write("scan le")
+            await ctl.expect("Discovery started")
+
+            # Verify that the auto-connection occurred.
+            await ctl.expect("Connected: yes")
+
+    async def test_gatt_indicate_call(self):
 
         srv = AsyncProcessContext(await asyncio.create_subprocess_exec(
             "tests/gatt/server.py", "--adapter=hci1", "--service=0xF100", "--char=0xF110",
@@ -439,7 +468,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.write("gatt.notify off")
             await ctl.expect("Notify stopped")
 
-    async def test_connect_gatt_indicate_socket(self):
+    async def test_gatt_indicate_socket(self):
 
         srv = AsyncProcessContext(await asyncio.create_subprocess_exec(
             "tests/gatt/server.py", "--adapter=hci1", "--service=0xF100", "--char=0xF110",

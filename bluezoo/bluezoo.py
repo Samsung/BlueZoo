@@ -56,7 +56,7 @@ class BluezMockService:
     async def _service_lost_task(self):
         async for _, old, new in self.dbus.name_owner_changed.catch():
             if old and not new:
-                logger.debug(f"D-Bus service {old} lost")
+                logger.debug("D-Bus service %s lost", old)
                 events.emit(f"service:lost:{old}")
 
     def export_object(self, path: str, obj):
@@ -71,7 +71,7 @@ class BluezMockService:
 
     async def add_adapter(self, id: int, address: str):
         adapter = Adapter(self, id, address)
-        logger.info(f"Adding {adapter}")
+        logger.info("Adding %s", adapter)
         for interface in adapter.get_interfaces():
             self.export_object(adapter.get_object_path(), interface)
         self.adapters[id] = adapter
@@ -81,7 +81,7 @@ class BluezMockService:
 
     async def del_adapter(self, id: int):
         adapter = self.adapters.pop(id)
-        logger.info(f"Removing {adapter}")
+        logger.info("Removing %s", adapter)
         for device in list(adapter.devices.values()):
             await adapter.del_device(device)
         for interface in adapter.get_interfaces():
@@ -100,7 +100,7 @@ class BluezMockService:
 
         async def task():
             while True:
-                logger.info(f"Scanning for devices on {self.adapters[id]}")
+                logger.info("Scanning for devices on %s", self.adapters[id])
                 for adapter in self.adapters.values():
                     if adapter.id == id:
                         # Do not report our own adapter.
