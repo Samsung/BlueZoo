@@ -19,7 +19,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v6
-      - uses: awalsh128/cache-apt-pkgs-action@v1
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: >
             python3-build

@@ -20,14 +20,14 @@ permissions:
 jobs:
 
   check-prepare:
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout BlueZ repository
+        uses: actions/checkout@v6
         with:
           repository: bluez/bluez
-      - uses: actions/cache@v5
+      - name: Cache installed BlueZ artifacts
+        uses: actions/cache@v5
         id: cache
         with:
           key: bluez-client
@@ -48,26 +48,34 @@ jobs:
 
   check:
     needs: check-prepare
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/cache@v5
+      - name: Restore cached BlueZ artifacts
+        uses: actions/cache@v5
         with:
           key: bluez-client
           path: ${{ github.workspace }}/bluez-install
-      - run: echo "${{ github.workspace }}/bluez-install/bin" >> $GITHUB_PATH
-      - uses: awalsh128/cache-apt-pkgs-action@v1
+      - name: Add BlueZ tools to PATH
+        run: echo "${{ github.workspace }}/bluez-install/bin" >> $GITHUB_PATH
+      - name: Install dependencies
+        uses: awalsh128/cache-apt-pkgs-action@v1
         with:
           packages: >
             tox
-      - name: Run Tests
+      - name: Run unit tests
         run: tox -e py3
+      - name: Generate coverage report
+        if: github.repository_owner == 'Samsung'
+        run: tox -e coverage
+      - name: Upload coverage report to Codecov
+        if: github.repository_owner == 'Samsung'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: .tox/coverage.xml
 
   code-ql:
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -80,8 +88,6 @@ jobs:
         uses: github/codeql-action/analyze@v4
 
   lint:
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -91,8 +97,6 @@ jobs:
         run: ruff check --output-format=github
 
   reuse:
-    strategy:
-      fail-fast: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
