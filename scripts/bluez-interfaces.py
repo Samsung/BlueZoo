@@ -39,6 +39,7 @@ class Interface:
     methods: list[Method] = field(default_factory=list)
     signals: list[Method] = field(default_factory=list)
     properties: list[Property] = field(default_factory=list)
+    supported: bool = False
     notes: str = ""
 
 
@@ -285,7 +286,7 @@ re_object_path = re.compile(r":Object path:\s+(.+)")
 re_method = re.compile(r"([\w\{\}, ]+)\s+(\w+)\((.*?)?\)(\s+\[(.+)\])?")
 re_property = re.compile(r"([\w\{\}]+)\s+(\w+)(\s+\[(.+)\])")
 
-interfaces = []
+interfaces = {}
 for source in args.sources:
     if args.verbose:
         print(f"Parsing {source.name}")
@@ -347,11 +348,11 @@ for source in args.sources:
             elif paragraph == 1:
                 prop.description += line
 
-    interfaces.append(interface)
+    interfaces[interface.name] = interface
 
 if args.list:
-    for iface in interfaces:
-        print(iface.name)
+    for name in interfaces:
+        print(name)
     sys.exit()
 
 TEMPLATE_HEADER = """
@@ -505,9 +506,9 @@ def save(name: str, interface: Interface):
     save_python(name, interface)
 
 
-for iface in interfaces:
+for name, iface in interfaces.items():
     # Do not include namespaces and version in the interface name.
-    name = iface.name.removeprefix("org.bluez.").rstrip("1")
+    name = name.removeprefix("org.bluez.").rstrip("1")
     # Remove dot and capitalize the first letter for OBEX interfaces.
     name = name[0].upper() + name[1:].replace(".", "")
 
@@ -524,3 +525,45 @@ for iface in interfaces:
         save(f"Adapter{name}", iface)
         iface.properties = props_device
         save(f"Device{name}", iface)
+
+REPORT_HEADER = """
+<!--
+SPDX-FileCopyrightText: 2025 BlueZoo developers
+SPDX-License-Identifier: GPL-2.0-only
+-->
+
+# BlueZ D-Bus Interfaces
+
+This document provides an overview of the support status of BlueZ D-Bus
+interfaces in the BlueZoo project.
+
+| Name                                     | Supported | Notes                |
+| :--------------------------------------- | :-------: | :------------------- |
+"""
+
+REPORT_ITEM = """
+| {name:40} | {status:9} | {notes:20} |
+"""
+
+# Generate a report about extracted interfaces in the Markdown format.
+file = args.output_dir / "INTERFACES.md"
+mark = "✓"  # The character used to mark supported interfaces.
+with suppress(FileNotFoundError):
+    re_item = re.compile(r"^\| (org.bluez.+) \| (.+) \| (.+) \|")
+    # If the file already exists, read it to load user notes.
+    with file.open() as f:
+        for line in f:
+            if match := re_item.match(line):
+                name = match.group(1).strip()
+                interfaces[name].supported = match.group(2).strip() == mark
+                interfaces[name].notes = match.group(3).strip()
+if args.verbose:
+    print(f"Generating {file}")
+with file.open("w") as f:
+    f.write(REPORT_HEADER.lstrip())
+    for name, iface in sorted(interfaces.items()):
+        f.write(REPORT_ITEM.lstrip().format(
+            name=name,
+            status=mark if iface.supported else "",
+            notes=iface.notes,
+        ))

@@ -22,8 +22,17 @@ jobs:
           repository: bluez/bluez
           path: bluez
       - name: Sync D-Bus Errors
-        run: scripts/bluez-errors.py -o bluezoo/exceptions.py bluez/doc/*
+        run: |
+          scripts/bluez-errors.py \
+            --output=bluezoo/exceptions.py \
+            bluez/doc/org.bluez.*.rst
       - name: Sync D-Bus Interfaces
-        run: scripts/bluez-interfaces.py -v -o bluezoo/interfaces bluez/doc/org.bluez.*.rst
+        run: |
+          mv INTERFACES.md bluezoo/interfaces
+          scripts/bluez-interfaces.py --verbose \
+            --output-dir=bluezoo/interfaces \
+            bluez/doc/org.bluez.*.rst
+      - name: Sync INTERFACES.md
+        run: mv bluezoo/interfaces/INTERFACES.md .
       - name: Check for uncommitted changes
         run: git diff --exit-code

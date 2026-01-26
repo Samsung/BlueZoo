@@ -57,10 +57,6 @@ class DBusBluezFailedError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.Failed"
 
 
-class DBusBluezHealthErrorError(sdbus.DbusFailedError):
-    dbus_error_name = "org.bluez.Error.HealthError"
-
-
 class DBusBluezImproperlyConfiguredError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.ImproperlyConfigured"
 
@@ -93,14 +89,6 @@ class DBusBluezInvalidValueLengthError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.InvalidValueLength"
 
 
-class DBusBluezNotAcquiredError(sdbus.DbusFailedError):
-    dbus_error_name = "org.bluez.Error.NotAcquired"
-
-
-class DBusBluezNotAllowedError(sdbus.DbusFailedError):
-    dbus_error_name = "org.bluez.Error.NotAllowed"
-
-
 class DBusBluezNotAuthorizedError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.NotAuthorized"
 
@@ -127,10 +115,6 @@ class DBusBluezNotReadyError(sdbus.DbusFailedError):
 
 class DBusBluezNotSupportedError(sdbus.DbusFailedError):
     dbus_error_name = "org.bluez.Error.NotSupported"
-
-
-class DBusBluezOutOfRangeError(sdbus.DbusFailedError):
-    dbus_error_name = "org.bluez.Error.OutOfRange"
 
 
 class DBusBluezRejectedError(sdbus.DbusFailedError):
