@@ -98,7 +98,8 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start mock with two adapters.
         await bluezoo.startup(
-            adapters=["00:00:00:11:11:11", "00:00:00:22:22:22"],
+            adapters=[bluezoo.BluetoothAddressWithName("00:00:00:11:11:11"),
+                      bluezoo.BluetoothAddressWithName("00:00:00:22:22:22")],
             auto_enable=True,
             scan_interval=1)
 
@@ -437,7 +438,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             "tests/gatt/server.py", "--adapter=hci1", "--service=0xF100", "--char=0xF110",
             "--primary", "--flag=read", "--flag=indicate", "--mutate=0.1",
             stdout=asyncio.subprocess.PIPE))
-        await srv.expect("Registered 0xF100 on hci1")
+        await srv.expect("Registered service 0xF100 on hci1")
 
         adv = AsyncProcessContext(await asyncio.create_subprocess_exec(
             "tests/gatt/advertise.py", "--adapter=hci1", "--service=0xF100",
@@ -463,7 +464,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Notify started")
 
             # Verify that the indication was confirmed via D-Bus call.
-            await srv.expect("Indication confirmed via D-Bus call")
+            await srv.expect("Characteristic indication confirmed via D-Bus call")
 
             await ctl.write("gatt.notify off")
             await ctl.expect("Notify stopped")
@@ -474,7 +475,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             "tests/gatt/server.py", "--adapter=hci1", "--service=0xF100", "--char=0xF110",
             "--primary", "--flag=read", "--flag=indicate", "--mutate=0.1", "--with-sockets",
             stdout=asyncio.subprocess.PIPE))
-        await srv.expect("Registered 0xF100 on hci1")
+        await srv.expect("Registered service 0xF100 on hci1")
 
         adv = AsyncProcessContext(await asyncio.create_subprocess_exec(
             "tests/gatt/advertise.py", "--adapter=hci1", "--service=0xF100",
@@ -500,7 +501,7 @@ class BluetoothMockTestCase(unittest.IsolatedAsyncioTestCase):
             await ctl.expect("Notify started")
 
             # Verify that the indication was confirmed via socket.
-            await srv.expect("Indication confirmation via socket: 01")
+            await srv.expect("Characteristic indication confirmation via socket: 01")
 
             await ctl.write("gatt.notify off")
             await ctl.expect("Notify stopped")

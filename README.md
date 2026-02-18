@@ -13,10 +13,18 @@ integration.
 
 ## Introduction
 
-BlueZoo provides "org.bluez" D-Bus service, allowing developers to test BlueZ
-integration in their applications without needing actual Bluetooth hardware.
-It runs entirely in user space, so it can be easily integrated into automated
-test suites on various CI/CD pipelines.
+BlueZoo provides "org.bluez" D-Bus service which mocks the behavior of the real
+BlueZ service. It allows to create multiple Bluetooth adapters (HCIs) within a
+single "org.bluez" D-Bus service. Each adapter can communicate with each other
+just like it would happen with real adapters connected to the same host.
+
+Such setup allows developers to test BlueZ integration in their applications
+without needing actual Bluetooth hardware. Additionally, BlueZoo runs entirely
+in user space (it does not require any special kernel modules or permissions)
+to allow easy integration with various testing environments, including CI/CD
+pipelines like GitHub Actions, GitLab CI, Jenkins, etc.
+
+![demo](https://github.com/user-attachments/assets/0751a02a-c901-4afc-9cd3-6e1998d71cf2)
 
 ## Installation
 
@@ -71,24 +79,24 @@ BlueZoo provides a D-Bus interface for managing the mock service. The manager
 interface is available at `/org/bluezoo`. It allows to dynamically create and
 destroy adapters.
 
-Remove adapter `hci0`:
-
-```sh
-gdbus call --system \
-    --dest org.bluez \
-    --object-path /org/bluezoo \
-    --method org.bluezoo.Manager1.RemoveAdapter
-    0
-```
-
-Add adapter `hci0` with address `00:00:00:11:11:11`:
+Add adapter `hci8` with address `00:00:00:11:11:11`:
 
 ```sh
 gdbus call --system \
     --dest org.bluez \
     --object-path /org/bluezoo \
     --method org.bluezoo.Manager1.AddAdapter
-    0 '00:00:00:11:11:11'
+    8 '00:00:00:11:11:11'
+```
+
+Remove adapter `hci8`:
+
+```sh
+gdbus call --system \
+    --dest org.bluez \
+    --object-path /org/bluezoo \
+    --method org.bluezoo.Manager1.RemoveAdapter
+    8
 ```
 
 ## BlueZ Interfaces

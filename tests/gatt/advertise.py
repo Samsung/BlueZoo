@@ -7,9 +7,12 @@ import signal
 from argparse import ArgumentParser
 
 import sdbus
+import structlog
 
 from bluezoo.interfaces.LEAdvertisingManager import LEAdvertisingManagerInterface
 from bluezoo.utils import setup_default_bus
+
+logger = structlog.getLogger(__package__)
 
 parser = ArgumentParser()
 parser.add_argument("--adapter", metavar="ADAPTER", default="hci0",
@@ -98,7 +101,7 @@ adv_manager = LEAdvertisingManagerInterface.new_proxy("org.bluez", adapter)
 
 async def startup():
     await adv_manager.RegisterAdvertisement("/adv", {})
-    print(f"Advertising {args.service} on {args.adapter}")
+    logger.info("Advertising %s on %s", args.service, args.adapter)
 
 
 loop.run_until_complete(startup())

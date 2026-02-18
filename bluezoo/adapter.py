@@ -41,9 +41,9 @@ class Adapter(AdapterInterface):
         super().__init__()
         self.mock = mock
 
-        self.adv = LEAdvertisingManager()
+        self.adv = LEAdvertisingManager(self)
         self.gatt = GattManager(self)
-        self.media = MediaManager()
+        self.media = MediaManager(self)
 
         self.id = id
         self.address = address

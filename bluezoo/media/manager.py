@@ -16,17 +16,18 @@ from .endpoint import MediaEndpointClient
 class MediaManager(MediaInterface):
     """Media manager."""
 
-    def __init__(self):
+    def __init__(self, adapter):
         super().__init__()
         # Keep track of registered media endpoints and applications.
         self.endpoints: dict[tuple[str, str], Any] = {}
         self.apps: dict[tuple[str, str], Any] = {}
+        self._adapter = adapter
 
     async def cleanup(self):
         pass
 
     async def __del_endpoint(self, endpoint):
-        logger.info("Removing %s", endpoint)
+        logger.info("Removing %s from %s", endpoint, self._adapter)
         self.endpoints.pop((endpoint.get_client(), endpoint.get_object_path()))
         await endpoint.cleanup()
 
@@ -44,7 +45,7 @@ class MediaManager(MediaInterface):
         endpoint = MediaEndpointClient(sender, path, properties, on_sender_lost)
         await endpoint.properties_setup_sync_task()
 
-        logger.info("Registering %s", endpoint)
+        logger.info("Registering %s on %s", endpoint, self._adapter)
         self.endpoints[sender, path] = endpoint
 
     @sdbus.dbus_method_async_override()

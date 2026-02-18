@@ -49,7 +49,8 @@ class BlueZooManagerTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Start mock with two adapters.
         await bluezoo.startup(
-            adapters=["00:00:00:11:11:11", "00:00:00:22:22:22"])
+            adapters=[bluezoo.BluetoothAddressWithName("00:00:00:11:11:11"),
+                      bluezoo.BluetoothAddressWithName("00:00:00:22:22:22")])
 
     async def asyncTearDown(self):
         self._bus.terminate()

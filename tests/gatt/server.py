@@ -9,9 +9,12 @@ import socket
 from argparse import ArgumentParser
 
 import sdbus
+import structlog
 
 from bluezoo.interfaces.GattManager import GattManagerInterface
 from bluezoo.utils import setup_default_bus
+
+logger = structlog.getLogger(__package__)
 
 parser = ArgumentParser()
 parser.add_argument("--adapter", metavar="ADAPTER", default="hci0",
@@ -78,7 +81,8 @@ class CharacteristicInterface(
         result_args_names=["r0"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def ReadValue(self, options: dict[str, tuple[str, object]]) -> bytes:
-        print("Read characteristic with options:", options)
+        logger.info("Reading characteristic: %s",
+                    " ".join(f"{k}={v[1]}" for k, v in options.items()))
         return self.value
 
     @sdbus.dbus_method_async(
@@ -86,7 +90,8 @@ class CharacteristicInterface(
         input_args_names=["value", "options"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def WriteValue(self, value: bytes, options: dict[str, tuple[str, object]]):
-        print("Write characteristic with options:", options)
+        logger.info("Writing characteristic: %s",
+                    " ".join(f"{k}={v[1]}" for k, v in options.items()))
         self.value = bytearray(value)
 
     @sdbus.dbus_method_async(
@@ -96,14 +101,15 @@ class CharacteristicInterface(
         result_args_names=["r0", "r1"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AcquireWrite(self, options: dict[str, tuple[str, object]]) -> tuple[int, int]:
-        print("Acquire write with options:", options)
+        logger.info("Acquiring characteristic write: %s",
+                    " ".join(f"{k}={v[1]}" for k, v in options.items()))
         f1, f2 = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         self.f_write = f1
         mtu = 23
 
         def reader():
             if data := f1.recv(mtu):
-                print("Received write data:", data.hex())
+                logger.info("Received characteristic write data: %s", data.hex())
                 self.value = bytearray(data)
             else:
                 self.f_write = None
@@ -119,14 +125,15 @@ class CharacteristicInterface(
         result_args_names=["r0", "r1"],
         flags=sdbus.DbusUnprivilegedFlag)
     async def AcquireNotify(self, options: dict[str, tuple[str, object]]) -> tuple[int, int]:
-        print("Acquire notify with options:", options)
+        logger.info("Acquiring characteristic notification: %s",
+                    " ".join(f"{k}={v[1]}" for k, v in options.items()))
         f1, f2 = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
         self.f_notify = f1
         mtu = 23
 
         def reader():
             if data := f1.recv(mtu):
-                print("Indication confirmation via socket:", data.hex())
+                logger.info("Characteristic indication confirmation via socket: %s", data.hex())
             else:
                 self.f_notify = None
                 f1.close()
@@ -137,19 +144,19 @@ class CharacteristicInterface(
     @sdbus.dbus_method_async(
         flags=sdbus.DbusUnprivilegedFlag)
     async def StartNotify(self):
-        print("Start characteristic notification")
+        logger.info("Starting characteristic notification")
         await self.Notifying.set_async(True)
 
     @sdbus.dbus_method_async(
         flags=sdbus.DbusUnprivilegedFlag)
     async def StopNotify(self):
-        print("Stop characteristic notification")
+        logger.info("Stopping characteristic notification")
         await self.Notifying.set_async(False)
 
     @sdbus.dbus_method_async(
         flags=sdbus.DbusUnprivilegedFlag)
     async def Confirm(self):
-        print("Indication confirmed via D-Bus call")
+        logger.info("Characteristic indication confirmed via D-Bus call")
 
     @sdbus.dbus_property_async(
         property_signature="s",
@@ -219,7 +226,7 @@ gatt_manager = GattManagerInterface.new_proxy("org.bluez", adapter)
 
 async def startup():
     await gatt_manager.RegisterApplication("/", {})
-    print(f"Registered {args.service} on {args.adapter}")
+    logger.info("Registered service %s on %s", args.service, args.adapter)
 
 
 async def mutate():

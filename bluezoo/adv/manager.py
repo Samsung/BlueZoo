@@ -31,9 +31,10 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
     # Number of supported advertisement instances per adapter.
     SUPPORTED_ADVERTISEMENT_INSTANCES = 15
 
-    def __init__(self):
+    def __init__(self, adapter):
         super().__init__()
         self.advertisements: dict[tuple[str, str], LEAdvertisementClient] = {}
+        self._adapter = adapter
 
     async def cleanup(self):
         for adv in self.advertisements.values():
@@ -44,7 +45,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         return self.SUPPORTED_ADVERTISEMENT_INSTANCES - len(self.advertisements)
 
     async def __del_advertisement(self, adv: LEAdvertisementClient):
-        logger.info("Removing %s", adv)
+        logger.info("Removing %s from %s", adv, self._adapter)
 
         self.advertisements.pop((adv.get_client(), adv.get_object_path()))
         await adv.cleanup()
@@ -70,7 +71,7 @@ class LEAdvertisingManager(LEAdvertisingManagerInterface):
         adv = LEAdvertisementClient(sender, path, options, on_sender_lost)
         await adv.properties_setup_sync_task()
 
-        logger.info("Registering %s", adv)
+        logger.info("Registering %s on %s", adv, self._adapter)
         self.advertisements[sender, path] = adv
 
         await self.ActiveInstances.set_async(len(self.advertisements))

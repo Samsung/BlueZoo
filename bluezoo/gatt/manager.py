@@ -34,7 +34,7 @@ class GattManager(GattManagerInterface):
             await app.cleanup()
 
     async def __del_gatt_application(self, app: GattApplicationClient) -> None:
-        logger.info("Removing GATT application %s", app.get_object_path())
+        logger.info("Removing GATT application %s from %s", app.get_object_path(), self._adapter)
         self.apps.pop((app.get_client(), app.get_object_path()), None)
         await app.cleanup()
         await self._adapter.update_uuids()
@@ -69,7 +69,7 @@ class GattManager(GattManagerInterface):
         await app.object_manager_setup_sync_task(
             (GattServiceClient, GattCharacteristicClient, GattDescriptorClient, GattProfileClient))
 
-        logger.info("Adding GATT application %s", app.get_object_path())
+        logger.info("Adding GATT application %s on %s", app.get_object_path(), self._adapter)
         self.apps[sender, path] = app
 
         for obj in app.objects.values():

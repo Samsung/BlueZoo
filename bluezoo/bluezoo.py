@@ -3,6 +3,8 @@
 
 import asyncio
 import logging
+import re
+import signal
 from argparse import ArgumentParser
 from typing import Any, Literal
 
@@ -146,7 +148,22 @@ class BluezMockService:
         return asyncio.create_task(task())
 
 
-async def startup(bus: Literal["system", "session"] = "system", adapters: list[str] = [],
+class BluetoothAddressWithName:
+    """Bluetooth address with optional name."""
+
+    __re_match = re.compile(r"^([0-9A-Fa-f:]+)(:(.+))?$")
+
+    def __init__(self, address: str):
+        if match := self.__re_match.match(address):
+            self.address = BluetoothAddress(match.group(1))
+            self.name = match.group(3)
+            return
+        msg = "Invalid Bluetooth address"
+        raise ValueError(msg)
+
+
+async def startup(bus: Literal["system", "session"] = "system",
+                  adapters: list[BluetoothAddressWithName] = [],
                   auto_enable: bool = False, scan_interval: int = 10):
 
     startup.bus = setup_default_bus(bus)
@@ -155,8 +172,9 @@ async def startup(bus: Literal["system", "session"] = "system", adapters: list[s
     logger.debug("Initializing BlueZ D-Bus Mock Service")
     service = BluezMockService(auto_enable, scan_interval)
 
-    for id, address in enumerate(adapters):
-        await service.add_adapter(id, address)
+    for id, adapter in enumerate(adapters):
+        a = await service.add_adapter(id, adapter.address)
+        a.name = adapter.name or a.name
 
     # Prevent the service from being garbage collected.
     startup.service = service
@@ -183,20 +201,22 @@ def main():
         help="use the session bus; default is the system bus")
     parser.add_argument(
         "--auto-enable", action="store_true",
-        help="auto-enable adapters")
+        help="auto-enable added adapters")
     parser.add_argument(
-        "--scan-interval", type=int, default=10,
+        "--scan-interval", metavar="SECONDS", type=int, default=10,
         help="interval between scans; default is %(default)s seconds")
     parser.add_argument(
-        "-a", "--adapter", metavar="ADDRESS", dest="adapters",
-        action="append", type=BluetoothAddress,
-        help="adapter to use")
+        "-a", "--adapter", metavar="ADDRESS[:NAME]", dest="adapters",
+        action="append", type=BluetoothAddressWithName,
+        help="add adapter with optional name (can be used multiple times)")
 
     args = parser.parse_args()
     verbosity = logging.INFO + 10 * (args.quiet - args.verbose)
     logging.basicConfig(level=max(logging.DEBUG, min(logging.CRITICAL, verbosity)))
 
     loop = asyncio.new_event_loop()
+    loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
+    loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
     loop.run_until_complete(startup(
         bus="session" if args.bus_session else "system",
         adapters=args.adapters or [],
